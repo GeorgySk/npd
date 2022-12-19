@@ -202,17 +202,14 @@ def to_splitter(domain: Segment,
     """
     if (domain.start.x == domain.end.x
             and countersegment.end.x == countersegment.start.x):
-        LOGGER.debug("vertical_segments_splitter")
         return vertical_segments_splitter(area_requirement=area_requirement,
                                           domain=domain,
                                           countersegment=countersegment)
     if domain.start.x == domain.end.x:
-        LOGGER.debug("vertical_domain_splitter")
         return vertical_domain_splitter(area_requirement=area_requirement,
                                         domain=domain,
                                         countersegment=countersegment)
     if countersegment.start.x == countersegment.end.x:
-        LOGGER.debug("vertical_countersegment_splitter")
         return vertical_countersegment_splitter(
             area_requirement=area_requirement,
             domain=domain,
@@ -224,7 +221,6 @@ def to_splitter(domain: Segment,
         countersegment.end)
     intercept_diff = domain_intercept - countersegment_intercept
     if countersegment_slope == domain_slope:
-        LOGGER.debug("parallel_inclined_segments_splitter")
         return parallel_inclined_segments_splitter(
             area_requirement=area_requirement,
             intercept_diff=intercept_diff,
@@ -233,7 +229,6 @@ def to_splitter(domain: Segment,
             countersegment=countersegment,
             countersegment_intercept=countersegment_intercept,
             slope=domain_slope)
-    LOGGER.debug("general_case_splitter")
     return general_case_splitter(
         area_requirement=area_requirement,
         intercept_diff=intercept_diff,
@@ -411,10 +406,8 @@ def general_case_splitter(area_requirement: Fraction,
                              * abs(intercept_diff ** 2 + slope_diff * const)))
               - intercept_diff) / slope_diff
     if is_before_domain(tail_x, domain.start.x, domain.end.x):
-        LOGGER.debug("is_before_domain")
         return Segment(domain.start, countersegment.start)
     if is_after_domain(tail_x, domain.start.x, domain.end.x):
-        LOGGER.debug("is_after_domain")
         return Segment(domain.end, countersegment.end)
     tail_y = tail_x * domain_slope + domain_intercept
     head_x = ((const - tail_x * intercept_diff)

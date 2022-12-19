@@ -1,4 +1,5 @@
 import logging
+from copy import deepcopy
 from fractions import Fraction
 from itertools import chain
 from typing import (Dict,
@@ -8,7 +9,7 @@ from gon.base import (Contour,
                       Point,
                       Segment)
 
-from draw import draw
+from npd.draw import draw
 from npd.structures import (CachedPolygon,
                             Chunk,
                             Partition)
@@ -27,21 +28,16 @@ def split(partition: Partition,
         join_pairs(partition)
         min_chunk_size = min(len(chunk.triangles)
                              for chunk in partition.chunk_map)
-        LOGGER.debug(f"Min chunk size: {min_chunk_size}")
         if min_chunk_size >= 5:
             swap_leaves(partition)
-    LOGGER.debug("Satisfactory chunk found!")
     join_small_chunks(partition, requirement=requirement)
-    LOGGER.debug("Small chunks are joined")
     chunk, remainder = most_compact_pair(partition)
     if chunk.area > requirement:
-        LOGGER.debug("chunk.area > requirement")
         chunk, remainder = readjust(chunk,
                                     remainder,
                                     requirement=requirement,
                                     partition=partition)
     elif chunk.area < requirement:
-        LOGGER.debug("chunk.area < requirement")
         chunk, remainder = add_triangles(chunk,
                                          remainder,
                                          requirement=requirement,
@@ -241,6 +237,20 @@ def most_compact_pair(partition: Partition) -> Tuple[Chunk, Chunk]:
         raise RuntimeError("Couldn't find the best chunk")
     remainder = collect_remainder(best_chunk, partition)
     return best_chunk, remainder
+
+
+def remainder_as_partition(chunk: Chunk,
+                           partition: Partition) -> Partition:
+    partition = deepcopy(partition)
+    # remove triangles including neighbors
+    # remove the chunk including neighbors
+    while len(partition.chunk_map) > 2:
+        neighbor = partition.chunk_neighbors(chunk)[0]
+        neighbors_neighbor = next(
+            node for node in partition.chunk_neighbors(neighbor)
+            if node != chunk)
+        partition.unite(neighbor, neighbors_neighbor)
+    return partition.chunk_neighbors(chunk)[0]
 
 
 def collect_remainder(chunk: Chunk,

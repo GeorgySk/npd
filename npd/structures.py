@@ -73,11 +73,23 @@ class Chunk:
                  perimeter: float) -> None:
         self.triangles = triangles
         self.area = area
-        self.perimeter = perimeter
+        self._perimeter = perimeter
+        if not isinstance(perimeter, float):
+            raise TypeError("Bad perimeter value")
         self._hash = hash(tuple(triangles))
 
     def __hash__(self) -> int:
         return self._hash
+
+    @property
+    def perimeter(self) -> float:
+        return self._perimeter
+
+    @perimeter.setter
+    def perimeter(self, value) -> None:
+        if not isinstance(value, float):
+            raise TypeError("Got unexpected type")
+        self._perimeter = value
 
     def compactness(self) -> float:
         """
@@ -163,9 +175,13 @@ class Partition:
         source.perimeter += sum(
             fast_length(edge) * (1 if neighbor in source.triangles else -1)
             for edge, neighbor in self.triangular_map[triangle].items())
+        if not isinstance(source.perimeter, float):
+            raise TypeError("Something went wrong when changing perimeter")
         target.perimeter += sum(
             fast_length(edge) * (-1 if neighbor in target.triangles else 1)
             for edge, neighbor in self.triangular_map[triangle].items())
+        if not isinstance(target.perimeter, float):
+            raise TypeError("Something went wrong when changing perimeter")
 
     def chunk_neighbors(self, chunk: Chunk) -> List[Chunk]:
         """

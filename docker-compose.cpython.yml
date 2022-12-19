@@ -1,0 +1,19 @@
+version: '3'
+
+services:
+  pode-cpython:
+    build:
+      context: .
+      args:
+        - PYTHON_IMAGE=${CPYTHON_IMAGE_NAME}
+        - PYTHON_IMAGE_VERSION=${CPYTHON_IMAGE_VERSION}
+    image: lostfan123/npd-cpython:0.1.1
+    volumes:
+      - ./npd/:/opt/npd/npd/
+      - ./tests/:/opt/npd/tests/
+      - ./README.md:/opt/npd/README.md
+      - ./requirements.txt:/opt/npd/requirements.txt
+      - ./requirements-tests.txt:/opt/npd/requirements-tests.txt
+      - ./setup.py:/opt/npd/setup.py
+      - ./pytest.ini:/opt/npd/pytest.ini
+    entrypoint: pytest

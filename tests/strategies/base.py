@@ -1,4 +1,3 @@
-import math
 from fractions import Fraction
 from math import floor
 from numbers import Real
@@ -8,8 +7,7 @@ from hypothesis import strategies as st
 from hypothesis.strategies import SearchStrategy
 from hypothesis_geometry import planar
 
-from npd.npd import (Partition,
-                     to_partition)
+from npd.npd import to_partition
 from tests.config import (MAX_COORDINATE,
                           MAX_DENOMINATOR,
                           MAX_HOLES_SIZE,
@@ -39,9 +37,10 @@ steiner_points_counts = st.integers(MIN_STEINER_POINTS_COUNT,
                                     MAX_STEINER_POINTS_COUNT)
 unit_area_fractions = st.fractions(MIN_REQUIREMENT_FRACTION,
                                    MAX_REQUIREMENT_FRACTION)
+deltas = st.fractions(Fraction(1, 10), Fraction(1))
 partitions = st.builds(to_partition,
                        polygon=polygons,
-                       steiner_points_count=steiner_points_counts)
+                       delta=deltas)
 
 MIN_PARTITION_SIZE = 1
 

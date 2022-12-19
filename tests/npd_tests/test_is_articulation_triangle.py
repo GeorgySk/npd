@@ -6,19 +6,15 @@ from hypothesis import (Verbosity,
                         settings)
 
 from npd.npd import to_partition
-from tests.strategies.base import (polygons,
-                                   steiner_points_counts)
-
-DRAW = False
+from tests.strategies.base import (deltas,
+                                   polygons)
 
 
 @given(polygon=polygons,
-       steiner_points_count=steiner_points_counts)
-@settings(verbosity=Verbosity.verbose)
+       delta=deltas)
 def test_non_articulation_node_presence(polygon: Polygon[Fraction],
-                                        steiner_points_count: int) -> None:
-    partition = to_partition(polygon,
-                             steiner_points_count=steiner_points_count)
+                                        delta: Fraction) -> None:
+    partition = to_partition(polygon, delta=delta)
     # There is no need to split partition into chunks and using only a
     # particular chunk for the test.
     assert any(

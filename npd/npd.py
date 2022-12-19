@@ -1,4 +1,3 @@
-"""Same but with attempt to create my own class"""
 import logging
 import math
 from fractions import Fraction
@@ -11,14 +10,11 @@ from gon.base import (Point,
                       Polygon)
 from ground.base import get_context
 
-from draw import draw
 from npd import (convex,
                  nonconvex)
-from npd.smoothing import smooth
+from npd.draw import draw
 from npd.structures import Partition
 from npd.utils import (fast_length,
-                       get_splitter_vertices,
-                       to_complete_border_vertices,
                        unite)
 
 LOGGER = logging.getLogger(__name__)
@@ -88,17 +84,7 @@ def split_into_two(polygon: Polygon[Fraction],
     chunk, remainder = nonconvex.split(partition, requirement=requirement)
     part = unite(chunk.triangles)
     other = unite(remainder.triangles)
-    splitter_vertices = get_splitter_vertices(
-        part.border.to_counterclockwise(),
-        other.border.to_counterclockwise())
-    border_vertices = to_complete_border_vertices(
-        polygon.border.to_counterclockwise(),
-        list(part.border.vertices))
-    return smooth(splitter_vertices,
-                  part,
-                  other,
-                  border_vertices,
-                  polygon)
+    return part, other
 
 
 def to_partition(polygon: Polygon,

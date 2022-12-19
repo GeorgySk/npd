@@ -90,4 +90,4 @@ def _(geometry: Chunk, *args, **kwargs) -> None:
 def _(geometry: list, *args, **kwargs) -> None:
     for i, point in enumerate(geometry):
         _draw(point, *args, **kwargs)
-        plt.text(point.x + 0.05, point.y + 0.05, str(i))
+        # plt.text(point.x + 0.05, point.y + 0.05, str(i))
