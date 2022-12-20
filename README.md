@@ -11,20 +11,10 @@ npd
 Summary
 -------
 
-`npd` is a Python library that implements an algorithm of 
-[Hert, S. and Lumelsky, V., 1998](https://www.worldscientific.com/doi/abs/10.1142/S0218195998000230)
-for a polygon decomposition into separate parts depending on the area 
+`npd` is a Python library that implements an algorithm for
+non-convex polygon decomposition into separate parts depending on the area 
 requirements.
 
-Main features are
-- all calculations are robust for floating point numbers
-& precise for integral numbers (like `int`)
-- support for partition of convex/nonconvex polygons with/without holes
-- support for anchored partition, free partition, and a mixture of both 
-where anchored polygon partition requires the resulting polygon parts to 
-contain specified points called "anchors" or "sites", and free partition does 
-not have any constraints on the resulting geometries. 
-- most of the code is covered with property-based tests.
 ---
 
 In what follows
