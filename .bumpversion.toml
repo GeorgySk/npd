@@ -1,7 +1,7 @@
 [tool.bumpversion]
 commit = false
 tag = false
-current_version = "0.1.2-alpha"
+current_version = "0.1.2"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)(\\-(?P<release>[a-z]+))?"
 serialize = [
     "{major}.{minor}.{patch}-{release}",
@@ -9,7 +9,7 @@ serialize = [
 ]
 
 [[tool.bumpversion.files]]
-filename = "docker-compose.cpython.yml"
+filename = "compose.yaml"
 
 [[tool.bumpversion.files]]
 filename = "npd/__init__.py"
