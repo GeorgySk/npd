@@ -1,0 +1,25 @@
+version: '3'
+
+services:
+  npd-cpython:
+    build:
+      context: .
+      args:
+        - PYTHON_IMAGE=${CPYTHON_IMAGE_NAME}
+        - PYTHON_IMAGE_VERSION=${CPYTHON_IMAGE_VERSION}
+        - POETRY_VERSION=${POETRY_VERSION}
+        - ENVIRONMENT=${ENVIRONMENT}
+    image: georgysk/npd-cpython:0.1.2
+    volumes:
+      - ./npd/:/opt/npd/npd/
+      - ./tests/:/opt/npd/tests/
+      - ./README.md:/opt/npd/README.md
+      - ./.bumpversion.toml:/opt/npd/.bumpversion.toml
+      - ./.env:/opt/npd/.env
+      - ./Dockerfile:/opt/npd/Dockerfile
+      - ./LICENSE:/opt/npd/LICENSE
+      - ./MANIFEST.in:/opt/npd/MANIFEST.in
+      - ./compose.yaml:/opt/npd/compose.yaml
+      - ./pyproject.toml:/opt/npd/pyproject.toml
+    stdin_open: true
+    tty: true

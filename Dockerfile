@@ -3,18 +3,24 @@ ARG PYTHON_IMAGE_VERSION
 
 FROM ${PYTHON_IMAGE}:${PYTHON_IMAGE_VERSION}
 
-RUN pip install --upgrade pip setuptools
+ARG POETRY_VERSION
+ARG ENVIRONMENT
 
 WORKDIR /opt/npd
 
-COPY requirements.txt .
-RUN pip install --force-reinstall -r requirements.txt
-
-COPY requirements-tests.txt .
-RUN pip install --force-reinstall -r requirements-tests.txt
-
+COPY pyproject.toml .
 COPY README.md .
-COPY pytest.ini .
-COPY setup.py .
 COPY npd/ npd/
 COPY tests/ tests/
+
+RUN pip install --upgrade pip
+RUN if [ "${ENVIRONMENT}" = "development" ]; then \
+        pip install "poetry==${POETRY_VERSION}" && \
+        poetry config virtualenvs.create false && \
+        poetry install; \
+    elif [ "${ENVIRONMENT}" = "production" ]; then \
+        pip install -e .; \
+    else \
+        echo "Invalid environment specified: '${POETRY_VERSION}'"; \
+        exit 1; \
+    fi
