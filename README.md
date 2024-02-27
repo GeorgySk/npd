@@ -46,7 +46,7 @@ cd npd
 
 Install:
   ```bash
-  python setup.py install
+  poetry install
   ```
 
 Development
@@ -57,7 +57,7 @@ Development
 #### Preparation
 
 Install
-[bump2version](https://github.com/c4urself/bump2version#installation).
+[bump-my-version](https://github.com/callowayproject/bump-my-version/tree/master?tab=readme-ov-file#installation).
 
 #### Pre-release
 
@@ -66,7 +66,7 @@ specification](http://semver.org/).
 
 Test bumping version
 ```bash
-bump2version --dry-run --verbose $CATEGORY
+bump-my-version bump --dry-run --verbose $CATEGORY
 ```
 
 where `$CATEGORY` is the target version number category name, possible
@@ -74,7 +74,7 @@ values are `patch`/`minor`/`major`.
 
 Bump version
 ```bash
-bump2version --verbose $CATEGORY
+bump-my-version bump --verbose $CATEGORY
 ```
 
 This will set version to `major.minor.patch-alpha`. 
@@ -83,12 +83,12 @@ This will set version to `major.minor.patch-alpha`.
 
 Test bumping version
 ```bash
-bump2version --dry-run --verbose release
+bump-my-version bump --dry-run --verbose release
 ```
 
 Bump version
 ```bash
-bump2version --verbose release
+bump-my-version bump --verbose release
 ```
 
 This will set version to `major.minor.patch`.
@@ -103,28 +103,10 @@ as separate pull request.
 
 Plain:
   ```bash
-  python setup.py test
+  pytest
   ```
 
 Inside `Docker` container:
   ```bash
-  docker-compose --file docker-compose.cpython.yml up
-  ```
-
-`Bash` script (e.g. can be used in `Git` hooks):
-  ```bash
-  ./run-tests.sh
-  ```
-  or
-  ```bash
-  ./run-tests.sh cpython
-  ```
-
-`PowerShell` script (e.g. can be used in `Git` hooks):
-  ```powershell
-  .\run-tests.ps1
-  ```
-  or
-  ```powershell
-  .\run-tests.ps1 cpython
+  docker-compose run --entrypoint pytest npd-cpython
   ```
