@@ -12,6 +12,7 @@ ground = "^8.2.0"
 matplotlib = "^3.6.2"
 networkx = "^2.8.8"
 sect = "^6.1.0"
+pdan = "^0.1.9"
 
 [tool.poetry.group.dev.dependencies]
 bump-my-version = "^0.18.3"

@@ -8,9 +8,9 @@ from typing import (List,
 from gon.base import (Point,
                       Polygon)
 from ground.base import get_context
+from pdan import minimizing_split
 
-from npd import (convex,
-                 nonconvex)
+from npd import nonconvex
 from npd.structures import Partition
 from npd.utils import (fast_length,
                        unite)
@@ -69,10 +69,10 @@ def split_into_two(polygon: Polygon[Fraction],
     if requirement > Fraction(1, 2) * polygon.area:
         raise ValueError("Requirement can't be larger than half of the area.")
     if polygon.is_convex:
-        part, other = convex.split(contour=polygon.border,
-                                   area_requirement=requirement,
-                                   key=lambda x, y: x.length)
-        return Polygon(part, []), Polygon(other, [])
+        part, other = minimizing_split(contour=polygon.border,
+                                       area_requirement=requirement,
+                                       key=lambda x, y: x.length)
+        return Polygon(part), Polygon(other)
     delta = Fraction(math.sqrt(polygon.area / steiner_points_count))
     partition = to_partition(polygon, delta=delta)
     chunk, remainder = nonconvex.split(partition, requirement=requirement)
