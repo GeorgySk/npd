@@ -1,4 +1,3 @@
-import logging
 import math
 from fractions import Fraction
 from itertools import (chain,
@@ -12,12 +11,10 @@ from ground.base import get_context
 
 from npd import (convex,
                  nonconvex)
-from npd.draw import draw
 from npd.structures import Partition
 from npd.utils import (fast_length,
                        unite)
 
-LOGGER = logging.getLogger(__name__)
 context = get_context()
 
 
@@ -47,7 +44,6 @@ def split(polygon: Polygon[Fraction],
             requirement=requirement,
             steiner_points_count=steiner_points_count)
         result.append(part)
-        draw(*result, remainder)
     result.append(remainder)
     return result
 
@@ -79,8 +75,6 @@ def split_into_two(polygon: Polygon[Fraction],
         return Polygon(part, []), Polygon(other, [])
     delta = Fraction(math.sqrt(polygon.area / steiner_points_count))
     partition = to_partition(polygon, delta=delta)
-    draw(*partition.triangular_map)
-    draw(*partition.chunk_map)
     chunk, remainder = nonconvex.split(partition, requirement=requirement)
     part = unite(chunk.triangles)
     other = unite(remainder.triangles)
@@ -98,7 +92,6 @@ def to_partition(polygon: Polygon,
     :return: Partition object
     """
     extra_points = steiner_points(polygon, delta=delta)
-    draw(polygon, *extra_points)
     return Partition(polygon, extra_points=extra_points)
 
 
