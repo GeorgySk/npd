@@ -1,5 +1,4 @@
 """Logic related to most compact partition of convex polygons"""
-import logging
 from collections import deque
 from fractions import Fraction
 from typing import (Callable,
@@ -19,8 +18,6 @@ from npd.utils import (inverse_shoelace,
                        robust_sqrt,
                        slope_intercept,
                        to_segments)
-
-LOGGER = logging.getLogger(__name__)
 
 
 def split(contour: Contour,
