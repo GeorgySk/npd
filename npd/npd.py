@@ -67,7 +67,7 @@ def split_into_two(polygon: Polygon[Fraction],
     part
     """
     if requirement > Fraction(1, 2) * polygon.area:
-        raise ValueError("Requirement can't be larger than half of area.")
+        raise ValueError("Requirement can't be larger than half of the area.")
     if polygon.is_convex:
         part, other = convex.split(contour=polygon.border,
                                    area_requirement=requirement,
