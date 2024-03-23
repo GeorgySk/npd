@@ -11,15 +11,14 @@ npd
 Summary
 -------
 
-`npd` is a Python library that implements an algorithm for
+Npd (stands for **N**on-convex **p**olygon **d**ecomposition) is a Python library that implements an algorithm for
 non-convex polygon decomposition into separate parts depending on the area 
 requirements.
 
 ---
 
-In what follows
-- `python` is an alias for `python3.8` or any later
-version (`python3.9` and so on).
+In what follows, `python` is an alias for `python3.8` or any later
+version.
 
 Installation
 ------------
