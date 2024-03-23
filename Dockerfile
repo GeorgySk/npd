@@ -1,26 +1,25 @@
-ARG PYTHON_IMAGE
 ARG PYTHON_IMAGE_VERSION
 
-FROM ${PYTHON_IMAGE}:${PYTHON_IMAGE_VERSION}
+FROM python:${PYTHON_IMAGE_VERSION}
 
 ARG POETRY_VERSION
-ARG ENVIRONMENT
+ARG DEV_IMAGE
 
 WORKDIR /opt/npd
 
-COPY pyproject.toml .
-COPY README.md .
-COPY npd/ npd/
-COPY tests/ tests/
+RUN pip install "poetry==${POETRY_VERSION}" && \
+    poetry config virtualenvs.create false
 
-RUN pip install --upgrade pip
-RUN if [ "${ENVIRONMENT}" = "development" ]; then \
-        pip install "poetry==${POETRY_VERSION}" && \
-        poetry config virtualenvs.create false && \
+COPY README.md .
+COPY tests/ tests/
+COPY npd/ npd/
+COPY pyproject.toml .
+
+RUN if [ "${DEV_IMAGE}" = "true" ]; then \
         poetry install; \
-    elif [ "${ENVIRONMENT}" = "production" ]; then \
-        pip install -e .; \
+    elif [ "${DEV_IMAGE}" = "false" ]; then \
+        poetry install --without dev; \
     else \
-        echo "Invalid environment specified: '${POETRY_VERSION}'"; \
+        echo "Invalid value specified for DEV_IMAGE: '${DEV_IMAGE}'"; \
         exit 1; \
     fi

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "npd"
-version = "0.1.2"
+version = "0.1.3"
 description = ""
 authors = ["GeorgySk <skorobogatovgeorgy+github@gmail.com>"]
 readme = "README.md"
@@ -29,4 +29,3 @@ source = ["npd"]
 
 [tool.pytest.ini_options]
 addopts = "--verbose -s --hypothesis-profile=default"
-testpaths = ["tests"]
