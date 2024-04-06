@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   npd:
     build:
@@ -8,7 +6,7 @@ services:
         - PYTHON_IMAGE_VERSION=${PYTHON_IMAGE_VERSION}
         - POETRY_VERSION=${POETRY_VERSION}
         - DEV_IMAGE=${DEV_IMAGE}
-    image: georgysk/npd:0.1.3
+    image: georgysk/npd:0.2.0-alpha
     volumes:
       - .:/opt/npd
     stdin_open: true
