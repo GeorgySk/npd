@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "npd"
-version = "0.2.0"
+version = "0.3.0-alpha"
 description = ""
 authors = ["GeorgySk <skorobogatovgeorgy+github@gmail.com>"]
 readme = "README.md"
