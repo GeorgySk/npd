@@ -4,7 +4,6 @@ from collections.abc import (Iterator,
 from dataclasses import dataclass
 from fractions import Fraction
 from itertools import chain
-from typing import Optional
 
 from gon.base import (Contour,
                       Point,
@@ -37,7 +36,7 @@ class CachedPolygon(Polygon):
 
     def __init__(self,
                  border: Contour[Scalar],
-                 holes: Optional[Sequence[Contour[Scalar]]] = None) -> None:
+                 holes: Sequence[Contour[Scalar]] | None = None) -> None:
         """Creates a polygon, computing its hash and perimeter only once."""
         if holes is None:
             holes = []
