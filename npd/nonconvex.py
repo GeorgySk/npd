@@ -18,6 +18,11 @@ from npd.utils import (fast_length,
 LOGGER = logging.getLogger(__name__)
 
 PLOT_STARTING_NUMBER = 20
+# leaves are swapped only once all chunks have at least this many triangles
+LEAF_SWAPPING_MIN_CHUNK_SIZE = 5
+# the partition is reduced to a chunk and the remainder
+PARTS_COUNT = 2
+TRIANGLE_SIDES_COUNT = 3
 
 
 def split(partition: Partition,
@@ -27,7 +32,7 @@ def split(partition: Partition,
         join_pairs(partition)
         min_chunk_size = min(len(chunk.triangles)
                              for chunk in partition.chunk_map)
-        if min_chunk_size >= 5:
+        if min_chunk_size >= LEAF_SWAPPING_MIN_CHUNK_SIZE:
             swap_leaves(partition)
     join_small_chunks(partition, requirement=requirement)
     chunk, remainder = most_compact_pair(partition)
@@ -141,7 +146,7 @@ def swap_leaves(partition: Partition) -> None:
             triangle_neighbors = [
                 neighbor
                 for neighbor in partition.triangle_neighbors(triangle)]
-            if len(triangle_neighbors) != 3:
+            if len(triangle_neighbors) != TRIANGLE_SIDES_COUNT:
                 continue
             if sum(neighbor in chunk.triangles
                    for neighbor in triangle_neighbors) != 1:
@@ -181,7 +186,7 @@ def join_small_chunks(partition: Partition,
     potential_sources = dict.fromkeys(
         chunk for chunk in partition.chunk_map
         if not is_satisfactory_area(chunk.area, requirement=requirement))
-    while potential_sources and len(partition.chunk_map) > 2:
+    while potential_sources and len(partition.chunk_map) > PARTS_COUNT:
         source = min(potential_sources, key=Chunk.compactness)
         best_target = None
         max_compactness = 0
@@ -253,7 +258,7 @@ def remainder_as_partition(chunk: Chunk,
     partition = deepcopy(partition)
     # remove triangles including neighbors
     # remove the chunk including neighbors
-    while len(partition.chunk_map) > 2:
+    while len(partition.chunk_map) > PARTS_COUNT:
         neighbor = partition.chunk_neighbors(chunk)[0]
         neighbors_neighbor = next(
             node for node in partition.chunk_neighbors(neighbor)
@@ -271,7 +276,7 @@ def collect_remainder(chunk: Chunk,
     :param partition:
     :return:
     """
-    while len(partition.chunk_map) > 2:
+    while len(partition.chunk_map) > PARTS_COUNT:
         neighbor = partition.chunk_neighbors(chunk)[0]
         neighbors_neighbor = next(
             node for node in partition.chunk_neighbors(neighbor)
@@ -385,7 +390,8 @@ def border_edge_triangle(chunk: Chunk,
         chunk_triangles_count = sum(
             triangle_neighbor in chunk.triangles
             for triangle_neighbor in triangle_neighbors)
-        if neighbor_triangles_count != 1 or chunk_triangles_count != 2:
+        if (neighbor_triangles_count != 1
+                or chunk_triangles_count != TRIANGLE_SIDES_COUNT - 1):
             continue
         triangle_neighbor_triangle = next(
             triangle_neighbor
