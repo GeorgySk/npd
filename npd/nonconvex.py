@@ -1,3 +1,4 @@
+"""Splitting of non-convex polygons by merging triangles into chunks."""
 import logging
 from copy import deepcopy
 from fractions import Fraction

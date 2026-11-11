@@ -1,3 +1,4 @@
+"""Plotting of intermediate steps for debugging the algorithm."""
 import inspect
 import random
 from functools import singledispatch

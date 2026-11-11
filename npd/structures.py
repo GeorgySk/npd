@@ -38,6 +38,7 @@ class CachedPolygon(Polygon):
     def __init__(self,
                  border: Contour[Scalar],
                  holes: Optional[Sequence[Contour[Scalar]]] = None) -> None:
+        """Creates a polygon, computing its hash and perimeter only once."""
         if holes is None:
             holes = []
         super().__init__(border, holes)
@@ -46,6 +47,7 @@ class CachedPolygon(Polygon):
                            + sum(map(fast_length, holes)))
 
     def __hash__(self) -> int:
+        """Hash computed at creation instead of on every call."""
         return self._hash
 
     @property
@@ -61,6 +63,7 @@ class Chunk:
                  triangles: dict[CachedPolygon, None],
                  area: Fraction,
                  perimeter: float) -> None:
+        """Creates a chunk of triangles with their precomputed measures."""
         self.triangles = triangles
         self.area = area
         self._perimeter = perimeter
@@ -69,10 +72,12 @@ class Chunk:
         self._hash = hash(tuple(triangles))
 
     def __hash__(self) -> int:
+        """Hash fixed at creation, so it stays valid when triangles move."""
         return self._hash
 
     @property
     def perimeter(self) -> float:
+        """Perimeter of the union of triangles."""
         return self._perimeter
 
     @perimeter.setter

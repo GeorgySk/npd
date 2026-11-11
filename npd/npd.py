@@ -1,3 +1,4 @@
+"""Splitting of polygons into parts with the given areas."""
 import math
 from fractions import Fraction
 from itertools import (chain,
