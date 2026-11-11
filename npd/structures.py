@@ -1,4 +1,4 @@
-"""Various classes designed to simplify the algorithm"""
+"""Various classes designed to simplify the algorithm."""
 from collections.abc import (Iterator,
                              Sequence)
 from dataclasses import dataclass
@@ -32,7 +32,7 @@ class ConvexPartition:
 
 class CachedPolygon(Polygon):
     """
-    Polygon with hashed perimeter
+    Polygon with hashed perimeter.
     """
     slots = "_hash", "_perimeter"
 
@@ -59,7 +59,7 @@ class CachedPolygon(Polygon):
 
 class Chunk:
     """
-    Stores collection of triangles with their total area and perimeter
+    Stores collection of triangles with their total area and perimeter.
     """
     def __init__(self, *,
                  triangles: dict[CachedPolygon, None],
@@ -98,7 +98,7 @@ class Partition:
                  polygon: Polygon,
                  *,
                  extra_points: Sequence[Point[Fraction]] = ()) -> None:
-        """O(n²)"""
+        """O(n²)."""
         triangulation = Triangulation.constrained_delaunay(
             polygon,
             extra_points=extra_points,

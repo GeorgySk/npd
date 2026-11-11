@@ -1,4 +1,4 @@
-"""Various utility functions"""
+"""Various utility functions."""
 import math
 from collections.abc import (Iterable,
                              Iterator)
