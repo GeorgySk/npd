@@ -108,6 +108,10 @@ ignore = [
     # adds a class per message and goes against the common practice of
     # raising built-in exceptions whenever their meaning fits.
     "TRY003",
+    # S311 flags any use of the `random` module as unfit for cryptography.
+    # Nothing in this package is security-related: randomness is only used
+    # for things like picking plot colors, where `secrets` would add nothing.
+    "S311",
     # opinion-based imports formatting
     "I001"
 ]
