@@ -1,6 +1,5 @@
 """Splitting of non-convex polygons by merging triangles into chunks."""
 import logging
-from copy import deepcopy
 from fractions import Fraction
 from itertools import chain
 
@@ -28,6 +27,13 @@ TRIANGLE_SIDES_COUNT = 3
 def split(partition: Partition,
           *,
           requirement: Fraction) -> tuple[Chunk, Chunk]:
+    """
+    Splits the partition into a chunk of the required area and the rest.
+
+    :param partition: partition of the polygon, updated in-place
+    :param requirement: area of the chunk to split off
+    :return: the chunk with the required area and the remainder chunk
+    """
     while not is_satisfactory_chunk_found(partition, requirement=requirement):
         join_pairs(partition)
         min_chunk_size = min(len(chunk.triangles)
@@ -251,20 +257,6 @@ def most_compact_pair(partition: Partition) -> tuple[Chunk, Chunk]:
         raise RuntimeError("Couldn't find the best chunk")
     remainder = collect_remainder(best_chunk, partition)
     return best_chunk, remainder
-
-
-def remainder_as_partition(chunk: Chunk,
-                           partition: Partition) -> Partition:
-    partition = deepcopy(partition)
-    # remove triangles including neighbors
-    # remove the chunk including neighbors
-    while len(partition.chunk_map) > PARTS_COUNT:
-        neighbor = partition.chunk_neighbors(chunk)[0]
-        neighbors_neighbor = next(
-            node for node in partition.chunk_neighbors(neighbor)
-            if node != chunk)
-        partition.unite(neighbor, neighbors_neighbor)
-    return partition.chunk_neighbors(chunk)[0]
 
 
 def collect_remainder(chunk: Chunk,

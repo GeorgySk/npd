@@ -15,6 +15,14 @@ from npd.structures import Chunk
 
 
 def draw(*geometries: Union[Geometry, Chunk, list], **kwargs) -> None:
+    """
+    Plots the geometries and blocks until the plot window is closed.
+
+    Does nothing unless `draw.DRAW` is set to True.
+    :param geometries: geometries to plot in black
+    :param kwargs: `red` and `blue` geometries to highlight, the rest
+    is passed to matplotlib
+    """
     if not draw.DRAW:
         return
     colored_geometries = {color: kwargs.pop(color, [])
