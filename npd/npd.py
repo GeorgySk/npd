@@ -70,7 +70,7 @@ def split_into_two(polygon: Polygon[Fraction],
     if polygon.is_convex:
         part, other = minimizing_split(contour=polygon.border,
                                        area_requirement=requirement,
-                                       key=lambda x, y: x.length)
+                                       key=lambda x, _: x.length)
         return Polygon(part), Polygon(other)
     delta = Fraction(math.sqrt(polygon.area / steiner_points_count))
     partition = to_partition(polygon, delta=delta)
