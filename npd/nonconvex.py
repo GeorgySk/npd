@@ -222,10 +222,10 @@ def most_compact_pair(partition: Partition) -> tuple[Chunk, Chunk]:
     :param partition: input partition
     :return: a pair of the most compact chunks
     """
-    perimeter_edges = set(
+    perimeter_edges = {
         edge for triangle, neighbor_map in partition.triangular_map.items()
         for edge, neighbor in neighbor_map.items()
-        if neighbor is None)
+        if neighbor is None}
     total_perimeter = sum(map(fast_length, perimeter_edges))
     max_compactness = 0
     best_chunk = None
@@ -236,13 +236,13 @@ def most_compact_pair(partition: Partition) -> tuple[Chunk, Chunk]:
         remainder_area = partition.total_area - chunk.area
         chunk_edges = {edge for triangle in chunk.triangles
                        for edge in partition.triangular_map[triangle]}
-        common_edges = set(edge for edge in chunk_edges
-                           if edge in perimeter_edges)
-        chunk_only_edges = set(
+        common_edges = {edge for edge in chunk_edges
+                        if edge in perimeter_edges}
+        chunk_only_edges = {
             edge
             for triangle in chunk.triangles
             for edge, neighbor in partition.triangular_map[triangle].items()
-            if neighbor is not None and neighbor not in chunk.triangles)
+            if neighbor is not None and neighbor not in chunk.triangles}
         chunk_only_perimeter = sum(map(fast_length, chunk_only_edges))
         common_perimeter = sum(map(fast_length, common_edges))
         remainder_perimeter = (total_perimeter - common_perimeter
