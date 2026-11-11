@@ -22,7 +22,7 @@ TriangularMap = dict["CachedPolygon", dict[Segment[Fraction], "CachedPolygon"]]
 
 @dataclass
 class ConvexPartition:
-    """Domain with its countersegment, side vertices and area difference."""
+    """Domain with its countersegment, side vertices and area difference."""  # noqa: D204
     domain: Segment[Fraction]
     countersegment: Segment[Fraction]
     right_vertices: list[Point[Fraction]]
@@ -34,6 +34,7 @@ class CachedPolygon(Polygon):
     """
     Polygon with hashed perimeter.
     """
+
     slots = "_hash", "_perimeter"
 
     def __init__(self,
@@ -61,6 +62,7 @@ class Chunk:
     """
     Stores collection of triangles with their total area and perimeter.
     """
+
     def __init__(self, *,
                  triangles: dict[CachedPolygon, None],
                  area: Fraction,
@@ -94,6 +96,7 @@ class Chunk:
 
 class Partition:
     """Relations between the chunks and triangles a polygon is split into."""
+
     def __init__(self,
                  polygon: Polygon,
                  *,
@@ -186,7 +189,7 @@ class Partition:
         :return: a list of triangle's neighbors
         """
         return [neighbor
-                for neighbor in self.triangular_map[triangle].values() 
+                for neighbor in self.triangular_map[triangle].values()
                 if neighbor is not None]
 
     def edge_between_chunks(self,
