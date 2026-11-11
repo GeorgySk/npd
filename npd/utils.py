@@ -3,7 +3,6 @@ import math
 from decimal import Decimal
 from fractions import Fraction
 from functools import reduce
-from itertools import chain
 from operator import or_
 from typing import (Iterable,
                     Iterator,
@@ -12,13 +11,10 @@ from typing import (Iterable,
 from gon.base import (Contour,
                       EMPTY,
                       Linear,
-                      Multipoint,
-                      Multisegment,
                       Orientation,
                       Point,
                       Polygon,
                       Segment)
-from ground.base import get_context
 
 T = TypeVar("T")
 

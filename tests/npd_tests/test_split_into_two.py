@@ -1,11 +1,8 @@
 import logging
-import math
 from fractions import Fraction
 
 from gon.base import Polygon
-from hypothesis import (Verbosity,
-                        given,
-                        settings)
+from hypothesis import given
 
 from npd.draw import draw
 from npd.npd import split_into_two
