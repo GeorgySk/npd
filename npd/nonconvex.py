@@ -324,7 +324,7 @@ def readjust(chunk: Chunk,
         draw(*partition.chunk_map, blue=chunk)
         if chunk.area == requirement:
             return chunk, neighbor
-        elif chunk.area < requirement:
+        if chunk.area < requirement:
             partition.move(border_triangle,
                            source=neighbor,
                            target=chunk)

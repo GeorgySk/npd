@@ -30,7 +30,7 @@ def fast_length(geometry: Linear[Fraction]) -> float:
         start = geometry.start
         end = geometry.end
         return math.sqrt((start.x - end.x) ** 2 + (start.y - end.y) ** 2)
-    elif isinstance(geometry, Contour):
+    if isinstance(geometry, Contour):
         result = 0
         for segment in geometry.segments:
             start = segment.start
@@ -38,8 +38,7 @@ def fast_length(geometry: Linear[Fraction]) -> float:
             result += math.sqrt((start.x - end.x) ** 2
                                 + (start.y - end.y) ** 2)
         return result
-    else:
-        raise TypeError(f"Cannot calculate length of type {type(geometry)}")
+    raise TypeError(f"Cannot calculate length of type {type(geometry)}")
 
 
 def to_segments(vertices: list[Point]) -> Iterator[Segment]:
