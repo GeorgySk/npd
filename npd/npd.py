@@ -119,7 +119,7 @@ def steiner_points(polygon: Polygon[Fraction],
             continue
         delta_x = (segment.end.x - segment.start.x) / extra_points_count
         delta_y = (segment.end.y - segment.start.y) / extra_points_count
-        for i in range(1, extra_points_count + 1):
-            points_on_border.append(Point(segment.start.x + i * delta_x,
-                                          segment.start.y + i * delta_y))
+        points_on_border.extend(Point(segment.start.x + i * delta_x,
+                                      segment.start.y + i * delta_y)
+                                for i in range(1, extra_points_count + 1))
     return constrained_grid + points_on_border
