@@ -76,7 +76,7 @@ class Chunk:
         return self._perimeter
 
     @perimeter.setter
-    def perimeter(self, value) -> None:
+    def perimeter(self, value: float) -> None:
         if not isinstance(value, float):
             raise TypeError("Got unexpected type")
         self._perimeter = value

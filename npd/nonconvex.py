@@ -59,7 +59,7 @@ def is_satisfactory_chunk_found(partition: Partition,
 
 def is_satisfactory_area(area: Fraction,
                          *,
-                         requirement) -> bool:
+                         requirement: Fraction) -> bool:
     """
     Checks if the area is close enough to the area requirement.
 
