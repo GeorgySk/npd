@@ -185,9 +185,9 @@ class Partition:
         :param triangle: any triangle in the triangular map
         :return: a list of triangle's neighbors
         """
-        return list(neighbor
-                    for neighbor in self.triangular_map[triangle].values()
-                    if neighbor is not None)
+        return [neighbor
+                for neighbor in self.triangular_map[triangle].values() 
+                if neighbor is not None]
 
     def edge_between_chunks(self,
                             chunk: Chunk,
