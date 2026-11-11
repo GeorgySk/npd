@@ -96,5 +96,5 @@ def _(geometry: Chunk, *args, **kwargs) -> None:
 
 @_draw.register(list)
 def _(geometry: list, *args, **kwargs) -> None:
-    for i, point in enumerate(geometry):
+    for _, point in enumerate(geometry):
         _draw(point, *args, **kwargs)
