@@ -434,7 +434,7 @@ def edge_neighbor(triangle: CachedPolygon,
     raise ValueError("Couldn't find edge neighbor.")
 
 
-def divide(partition: Partition,  # noqa: PLR0917
+def divide(partition: Partition,  # noqa: PLR0917, PLR0913
            node: CachedPolygon,
            pivot_index: int,
            new_vertex: Point,
