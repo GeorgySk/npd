@@ -16,8 +16,8 @@ from ground.base import get_context
 
 from npd.utils import fast_length
 
-NeighborChunkPerEdge = dict[frozenset[Segment[Fraction]], 'Chunk']
-TriangularMap = dict['CachedPolygon', dict[Segment[Fraction], 'CachedPolygon']]
+NeighborChunkPerEdge = dict[frozenset[Segment[Fraction]], "Chunk"]
+TriangularMap = dict["CachedPolygon", dict[Segment[Fraction], "CachedPolygon"]]
 
 
 @dataclass
@@ -37,7 +37,7 @@ class CachedPolygon(Polygon):
     """
     Polygon with hashed perimeter
     """
-    slots = '_hash', '_perimeter'
+    slots = "_hash", "_perimeter"
 
     def __init__(self,
                  border: Contour[Scalar],

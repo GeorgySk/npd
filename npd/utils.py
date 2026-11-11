@@ -20,7 +20,7 @@ from gon.base import (Contour,
                       Segment)
 from ground.base import get_context
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def fast_length(geometry: Linear[Fraction]) -> float:

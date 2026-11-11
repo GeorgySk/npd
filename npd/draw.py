@@ -17,9 +17,9 @@ def draw(*geometries: Union[Geometry, Chunk, list], **kwargs) -> None:
     if not draw.DRAW:
         return
     colored_geometries = {color: kwargs.pop(color, [])
-                          for color in ['red', 'blue']}
+                          for color in ["red", "blue"]}
     for geometry in geometries:
-        _draw(geometry, color='black', **kwargs)
+        _draw(geometry, color="black", **kwargs)
     for color, geometries in colored_geometries.items():
         if not geometries:
             continue
@@ -29,7 +29,7 @@ def draw(*geometries: Union[Geometry, Chunk, list], **kwargs) -> None:
             _draw(geometry, color=color)
     caller = inspect.stack()[1]
     plt.title(f"{caller.function}:{caller.lineno}")
-    plt.axis('scaled')
+    plt.axis("scaled")
     plt.show(block=True)
 
 
@@ -41,15 +41,15 @@ def _draw(geometry: Union[Geometry, Chunk, list], *args, **kwargs
 
 @_draw.register(Point)
 def _(geometry: Point, *args, **kwargs) -> None:
-    kwargs.setdefault('marker', 'o')
+    kwargs.setdefault("marker", "o")
     plt.plot(geometry.x, geometry.y, *args, **kwargs)
 
 
 @_draw.register(Segment)
 def _(segment: Segment, *args, label: str = None, **kwargs):
     start, end = segment.start, segment.end
-    _draw(start, **({'color': kwargs['color']}
-                    if 'color' in kwargs else {}))
+    _draw(start, **({"color": kwargs["color"]}
+                    if "color" in kwargs else {}))
     plt.plot(*zip((start.x, start.y), (end.x, end.y)), *args, **kwargs)
 
 
@@ -66,8 +66,8 @@ def _(geometry: Contour, *args, fill: bool = False, **kwargs) -> None:
 
 @_draw.register(Polygon)
 def _(geometry: Polygon, *args, **kwargs) -> None:
-    border_color = kwargs.pop('color')
-    fill_color = kwargs.pop('fill_color', None)
+    border_color = kwargs.pop("color")
+    fill_color = kwargs.pop("fill_color", None)
     if fill_color is not None:
         _draw(geometry.border, *args, fill=True, color=fill_color, **kwargs)
     _draw(geometry.border, *args, color=border_color, **kwargs)

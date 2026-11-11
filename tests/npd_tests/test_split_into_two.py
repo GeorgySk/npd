@@ -45,7 +45,7 @@ def test_nodes_unions_equality(polygon: Polygon[Fraction],
 def test_nodes_validity(polygon: Polygon[Fraction],
                         unit_area_fraction: Fraction,
                         steiner_points_count: int) -> None:
-    if not hasattr(test_nodes_unions_equality, 'count'):
+    if not hasattr(test_nodes_unions_equality, "count"):
         test_nodes_unions_equality.count = 1
     else:
         test_nodes_unions_equality.count += 1
