@@ -564,12 +564,12 @@ def final_node_refinement(node_to_split: CachedPolygon,
         base_end=vertices[pivot_index - 2])
     draw(*partition.chunk_map,
          red=[node_to_split, vertices[pivot_index]], blue=[chunk, new_vertex])
-    left, right = divide(partition,
-                         node=node_to_split,
-                         pivot_index=pivot_index,
-                         new_vertex=new_vertex,
-                         chunk=chunk,
-                         neighbor=neighbor)
+    _, right = divide(partition,
+                      node=node_to_split,
+                      pivot_index=pivot_index,
+                      new_vertex=new_vertex,
+                      chunk=chunk,
+                      neighbor=neighbor)
     partition.move(right,
                    source=chunk,
                    target=neighbor)
