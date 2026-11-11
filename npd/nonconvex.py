@@ -296,7 +296,6 @@ def readjust(chunk: Chunk,
             ignored_neighbors = {}
             continue
         if border_triangle is None:
-            # border = dict.fromkeys(partition.border_triangles(chunk))
             divide_border_edge_triangle(chunk, neighbor, partition)
             border_triangle = next(
                 triangle for triangle in partition.border_triangles(chunk)

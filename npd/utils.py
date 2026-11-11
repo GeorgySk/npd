@@ -42,12 +42,6 @@ def fast_length(geometry: Linear[Fraction]) -> float:
         return result
     else:
         raise TypeError(f"Cannot calculate length of type {type(geometry)}")
-    # context = get_context()
-    # original_sqrt = context.sqrt
-    # context._sqrt = math.sqrt
-    # result = geometry.length
-    # context._sqrt = original_sqrt
-    # return result
 
 
 def to_segments(vertices: list[Point]) -> Iterator[Segment]:

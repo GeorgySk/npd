@@ -34,9 +34,6 @@ def test_nodes_unions_equality(polygon: Polygon[Fraction],
     draw.DRAW = False
 
     assert True
-    # union = first_part | second_part
-    # note(f"Resulting union: {union}\n")
-    # assert polygon == first_part | second_part
 
 
 @given(polygon=polygons,
