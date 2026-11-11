@@ -2,8 +2,6 @@ import logging
 from copy import deepcopy
 from fractions import Fraction
 from itertools import chain
-from typing import (Dict,
-                    Tuple)
 
 from gon.base import (Contour,
                       Point,
@@ -23,7 +21,7 @@ PLOT_STARTING_NUMBER = 20
 
 def split(partition: Partition,
           *,
-          requirement: Fraction) -> Tuple[Chunk, Chunk]:
+          requirement: Fraction) -> tuple[Chunk, Chunk]:
     while not is_satisfactory_chunk_found(partition, requirement=requirement):
         join_pairs(partition)
         min_chunk_size = min(len(chunk.triangles)
@@ -89,8 +87,8 @@ def join_pairs(partition: Partition) -> None:
 
 
 def merge_least_compact(partition: Partition,
-                        potential_sources: Dict[Chunk, None],
-                        potential_targets: Dict[Chunk, None]) -> None:
+                        potential_sources: dict[Chunk, None],
+                        potential_targets: dict[Chunk, None]) -> None:
     """
     :param partition:
     :param potential_sources:
@@ -196,7 +194,7 @@ def join_small_chunks(partition: Partition,
                 potential_sources.setdefault(union)
 
 
-def most_compact_pair(partition: Partition) -> Tuple[Chunk, Chunk]:
+def most_compact_pair(partition: Partition) -> tuple[Chunk, Chunk]:
     """
     For the given partition, finds the most compact pair of chunks
     :param partition: input partition
@@ -273,7 +271,7 @@ def readjust(chunk: Chunk,
              neighbor: Chunk,
              *,
              requirement: Fraction,
-             partition: Partition) -> Tuple[Chunk, Chunk]:
+             partition: Partition) -> tuple[Chunk, Chunk]:
     """
     :param chunk:
     :param neighbor:
@@ -421,7 +419,7 @@ def divide(partition: Partition,
            pivot_index: int,
            new_vertex: Point,
            chunk: Chunk,
-           neighbor: Chunk) -> Tuple[CachedPolygon, CachedPolygon]:
+           neighbor: Chunk) -> tuple[CachedPolygon, CachedPolygon]:
     """
     :param partition:
     :param node:
@@ -587,7 +585,7 @@ def add_triangles(chunk: Chunk,
                   neighbor: Chunk,
                   *,
                   requirement: Fraction,
-                  partition: Partition) -> Tuple[Chunk, Chunk]:
+                  partition: Partition) -> tuple[Chunk, Chunk]:
     """
     :param chunk:
     :param neighbor:

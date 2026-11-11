@@ -7,9 +7,6 @@ from itertools import chain
 from operator import or_
 from typing import (Iterable,
                     Iterator,
-                    List,
-                    Set,
-                    Tuple,
                     TypeVar)
 
 from gon.base import (Contour,
@@ -53,7 +50,7 @@ def fast_length(geometry: Linear[Fraction]) -> float:
     # return result
 
 
-def to_segments(vertices: List[Point]) -> Iterator[Segment]:
+def to_segments(vertices: list[Point]) -> Iterator[Segment]:
     """
     Returns an iterator over consecutive segments
     built on the given list of points
@@ -91,7 +88,7 @@ def inverse_shoelace(area: Fraction,
     return Point(x_coordinate, y_coordinate)
 
 
-def slope_intercept(start: Point, end: Point) -> Tuple[Fraction, Fraction]:
+def slope_intercept(start: Point, end: Point) -> tuple[Fraction, Fraction]:
     """
     :param start:
     :param end:

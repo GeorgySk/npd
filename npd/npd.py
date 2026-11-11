@@ -2,8 +2,6 @@ import math
 from fractions import Fraction
 from itertools import (chain,
                        product)
-from typing import (List,
-                    Tuple)
 
 from gon.base import (Point,
                       Polygon)
@@ -20,8 +18,8 @@ context = get_context()
 
 def split(polygon: Polygon[Fraction],
           *,
-          requirements: List[Fraction],
-          steiner_points_count: int) -> List[Polygon[Fraction]]:
+          requirements: list[Fraction],
+          steiner_points_count: int) -> list[Polygon[Fraction]]:
     """
     Splits a polygon into N parts where N is length of the list of
     area requirements.
@@ -52,7 +50,7 @@ def split_into_two(polygon: Polygon[Fraction],
                    *,
                    requirement: Fraction,
                    steiner_points_count: int
-                   ) -> Tuple[Polygon[Fraction], Polygon[Fraction]]:
+                   ) -> tuple[Polygon[Fraction], Polygon[Fraction]]:
     """
     Splits a polygon into two parts according to the given area
     requirement
@@ -96,7 +94,7 @@ def to_partition(polygon: Polygon,
 
 
 def steiner_points(polygon: Polygon[Fraction],
-                   delta: Fraction) -> List[Point[Fraction]]:
+                   delta: Fraction) -> list[Point[Fraction]]:
     """
     :param polygon:
     :param delta:

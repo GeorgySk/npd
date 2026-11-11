@@ -2,10 +2,7 @@
 from dataclasses import dataclass
 from fractions import Fraction
 from itertools import chain
-from typing import (Dict,
-                    FrozenSet,
-                    Iterator,
-                    List,
+from typing import (Iterator,
                     Optional,
                     Sequence)
 
@@ -19,8 +16,8 @@ from ground.base import get_context
 
 from npd.utils import fast_length
 
-NeighborChunkPerEdge = Dict[FrozenSet[Segment[Fraction]], 'Chunk']
-TriangularMap = Dict['CachedPolygon', Dict[Segment[Fraction], 'CachedPolygon']]
+NeighborChunkPerEdge = dict[frozenset[Segment[Fraction]], 'Chunk']
+TriangularMap = dict['CachedPolygon', dict[Segment[Fraction], 'CachedPolygon']]
 
 
 @dataclass
@@ -31,7 +28,7 @@ class ConvexPartition:
     """
     domain: Segment[Fraction]
     countersegment: Segment[Fraction]
-    right_vertices: List[Point[Fraction]]
+    right_vertices: list[Point[Fraction]]
     left_vertices: [Point[Fraction]]
     area_difference: Fraction
 
@@ -68,7 +65,7 @@ class Chunk:
     Stores collection of triangles with their total area and perimeter
     """
     def __init__(self, *,
-                 triangles: Dict[CachedPolygon, None],
+                 triangles: dict[CachedPolygon, None],
                  area: Fraction,
                  perimeter: float) -> None:
         self.triangles = triangles
@@ -135,7 +132,7 @@ class Partition:
 
     def is_articulation_triangle(self,
                                  triangle_to_remove: CachedPolygon,
-                                 chunk_triangles: Dict[CachedPolygon, None]
+                                 chunk_triangles: dict[CachedPolygon, None]
                                  ) -> bool:
         """
         Checks if removal of the given triangle from the given set
@@ -183,7 +180,7 @@ class Partition:
         if not isinstance(target.perimeter, float):
             raise TypeError("Something went wrong when changing perimeter")
 
-    def chunk_neighbors(self, chunk: Chunk) -> List[Chunk]:
+    def chunk_neighbors(self, chunk: Chunk) -> list[Chunk]:
         """
         :param chunk: any chunk in the partition
         :return: a list of neighbor chunks
@@ -191,7 +188,7 @@ class Partition:
         return list(self.chunk_map[chunk].values())
 
     def triangle_neighbors(self, triangle: CachedPolygon
-                           ) -> List[CachedPolygon]:
+                           ) -> list[CachedPolygon]:
         """
         :param triangle: any triangle in the triangular map
         :return: a list of triangle's neighbors
@@ -203,7 +200,7 @@ class Partition:
     def edge_between_chunks(self,
                             chunk: Chunk,
                             other: Chunk
-                            ) -> FrozenSet[Segment[Fraction]]:
+                            ) -> frozenset[Segment[Fraction]]:
         """
         :param chunk: chunk in the partition
         :param other: neighbor chunk
@@ -316,7 +313,7 @@ class Partition:
                                                          chunk.triangles))
 
 
-def to_triangular_map(triangles: List[CachedPolygon]) -> TriangularMap:
+def to_triangular_map(triangles: list[CachedPolygon]) -> TriangularMap:
     """
     :param triangles: a list of triangles
     :return: a map that stores relation between neighboring triangles
@@ -336,7 +333,7 @@ def to_triangular_map(triangles: List[CachedPolygon]) -> TriangularMap:
     return triangular_map
 
 
-def to_chunk_map(triangular_map: TriangularMap) -> Dict[Chunk,
+def to_chunk_map(triangular_map: TriangularMap) -> dict[Chunk,
                                                         NeighborChunkPerEdge]:
     """
     :param triangular_map: input triangular map

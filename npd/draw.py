@@ -1,8 +1,7 @@
 import inspect
 import random
 from functools import singledispatch
-from typing import (List,
-                    Union)
+from typing import Union
 
 import matplotlib.pyplot as plt
 from gon.base import (Contour,
@@ -14,7 +13,7 @@ from gon.base import (Contour,
 from npd.structures import Chunk
 
 
-def draw(*geometries: Union[Geometry, Chunk, List], **kwargs) -> None:
+def draw(*geometries: Union[Geometry, Chunk, list], **kwargs) -> None:
     if not draw.DRAW:
         return
     colored_geometries = {color: kwargs.pop(color, [])
