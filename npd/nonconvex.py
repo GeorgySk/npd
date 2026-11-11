@@ -149,9 +149,7 @@ def swap_leaves(partition: Partition) -> None:
         triangle_to_move = None
         neighbor_chunk = None
         for triangle in chunk.triangles:
-            triangle_neighbors = [
-                neighbor
-                for neighbor in partition.triangle_neighbors(triangle)]
+            triangle_neighbors = list(partition.triangle_neighbors(triangle))
             if len(triangle_neighbors) != TRIANGLE_SIDES_COUNT:
                 continue
             if sum(neighbor in chunk.triangles
