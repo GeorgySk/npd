@@ -44,7 +44,7 @@ partitions = st.builds(to_partition,
 MIN_PARTITION_SIZE = 1
 
 
-def to_partitions(sum_: Real,
+def to_partitions(sum_: Real,  # noqa: C901
                   *,
                   min_value: Real = 0,
                   size: int = MIN_PARTITION_SIZE,
