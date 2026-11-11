@@ -49,8 +49,10 @@ def to_partitions(sum_: Real,
                   *,
                   min_value: Real = 0,
                   size: int = MIN_PARTITION_SIZE,
-                  base: SearchStrategy[Real] = st.integers()
+                  base: SearchStrategy[Real] | None = None
                   ) -> SearchStrategy[List[Real]]:
+    if base is None:
+        base = st.integers()
     if size < MIN_PARTITION_SIZE:
         raise ValueError('`size` should not be less '
                          f'than {MIN_PARTITION_SIZE}.')
