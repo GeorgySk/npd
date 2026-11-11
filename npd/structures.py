@@ -22,10 +22,7 @@ TriangularMap = dict["CachedPolygon", dict[Segment[Fraction], "CachedPolygon"]]
 
 @dataclass
 class ConvexPartition:
-    """
-    Class to keep information on domains, their corresponding
-    countersegments, vertices on each side, and the area difference
-    """
+    """Domain with its countersegment, side vertices and area difference."""
     domain: Segment[Fraction]
     countersegment: Segment[Fraction]
     right_vertices: list[Point[Fraction]]
@@ -96,10 +93,7 @@ class Chunk:
 
 
 class Partition:
-    """
-    Class to keep relation between different chunks and triangles
-    the polygon is split into.
-    """
+    """Relations between the chunks and triangles a polygon is split into."""
     def __init__(self,
                  polygon: Polygon,
                  *,
@@ -115,10 +109,7 @@ class Partition:
         self.total_area = polygon.area
 
     def is_articulation_chunk(self, chunk_to_remove: Chunk) -> bool:
-        """
-        Checks if removal of the given chunk
-        would disconnect the graph.
-        """
+        """Checks if removal of the given chunk would disconnect the graph."""
         root = next(chunk for chunk in self.chunk_map
                     if chunk != chunk_to_remove)
         seen, stack = {chunk_to_remove}, [root]
@@ -134,10 +125,7 @@ class Partition:
                                  triangle_to_remove: CachedPolygon,
                                  chunk_triangles: dict[CachedPolygon, None]
                                  ) -> bool:
-        """
-        Checks if removal of the given triangle from the given set
-        would disconnect the corresponding graph.
-        """
+        """Checks if removing the triangle disconnects the given triangles."""
         if len(chunk_triangles) == 1:
             return False
         root = next(triangle for triangle in self.triangular_map
@@ -159,8 +147,8 @@ class Partition:
              source: Chunk,
              target: Chunk) -> None:
         """
-        Moves the given triangle from the source chunk to the target
-        chunk
+        Moves the given triangle from the source chunk to the target chunk.
+
         :param triangle: will be moved from one chunk to another
         :param source: chunk that will lose the triangle
         :param target: chunk that will receive the triangle
@@ -182,6 +170,8 @@ class Partition:
 
     def chunk_neighbors(self, chunk: Chunk) -> list[Chunk]:
         """
+        Lists the neighbor chunks of the given chunk.
+
         :param chunk: any chunk in the partition
         :return: a list of neighbor chunks
         """
@@ -190,6 +180,8 @@ class Partition:
     def triangle_neighbors(self, triangle: CachedPolygon
                            ) -> list[CachedPolygon]:
         """
+        Lists the neighbor triangles of the given triangle.
+
         :param triangle: any triangle in the triangular map
         :return: a list of triangle's neighbors
         """
@@ -202,6 +194,8 @@ class Partition:
                             other: Chunk
                             ) -> frozenset[Segment[Fraction]]:
         """
+        Finds the edge shared by two neighbor chunks.
+
         :param chunk: chunk in the partition
         :param other: neighbor chunk
         :return: edge between the given chunks as a set of segments
@@ -214,6 +208,8 @@ class Partition:
                                other: CachedPolygon
                                ) -> Segment[Fraction]:
         """
+        Finds the segment shared by two neighbor triangles.
+
         :param triangle: triangle in the triangular map
         :param other: neighbor of the triangle
         :return: segment that the given triangles share
@@ -224,6 +220,8 @@ class Partition:
 
     def unite(self, chunk: Chunk, other: Chunk) -> Chunk:
         """
+        Unites two neighbor chunks into a new one.
+
         Creates a new chunk out of two given ones, replaces them with
         the new one, and updates all the relations.
         :param chunk: any chunk from the partition
@@ -243,6 +241,8 @@ class Partition:
 
     def union_perimeter(self, chunk: Chunk, other: Chunk) -> float:
         """
+        Calculates the perimeter of the union of two neighbor chunks.
+
         :param chunk: any chunk from the partition
         :param other: neighbor chunk
         :return: perimeter of a chunk that could be obtained if the
@@ -285,8 +285,8 @@ class Partition:
                                 *,
                                 this_chunk: Chunk) -> bool:
         """
-        Checks if the given triangle shares a border with any chunk
-        other than the one this triangle belongs to
+        Checks if the triangle borders a chunk other than its own.
+
         :param triangle: any triangle from the triangular map
         :param this_chunk: chunk this triangle belongs to
         :return: True if the condition satisfies, False otherwise
@@ -296,6 +296,8 @@ class Partition:
 
     def border_triangles(self, chunk: Chunk) -> Iterator[CachedPolygon]:
         """
+        Yields the triangles of the chunk that touch other chunks.
+
         :param chunk: any chunk from the partition
         :return: iterator over triangles on the border of the chunk
         """
@@ -305,6 +307,8 @@ class Partition:
 
     def movable_triangles(self, chunk: Chunk) -> Iterator[CachedPolygon]:
         """
+        Yields the border triangles that can be moved from the chunk.
+
         :return: iterator over triangles of the given chunk that can be
         moved without causing discontinuity
         """
@@ -315,6 +319,8 @@ class Partition:
 
 def to_triangular_map(triangles: list[CachedPolygon]) -> TriangularMap:
     """
+    Builds a map of neighboring triangles and their shared segments.
+
     :param triangles: a list of triangles
     :return: a map that stores relation between neighboring triangles
     and shared segments
@@ -336,6 +342,8 @@ def to_triangular_map(triangles: list[CachedPolygon]) -> TriangularMap:
 def to_chunk_map(triangular_map: TriangularMap) -> dict[Chunk,
                                                         NeighborChunkPerEdge]:
     """
+    Converts a triangular map to a chunk map.
+
     :param triangular_map: input triangular map
     :return: same triangular map but where triangles are wrapped as
     chunks and segments wrapped as sets of single segment
@@ -352,6 +360,7 @@ def to_chunk_map(triangular_map: TriangularMap) -> dict[Chunk,
 def to_chunk(triangle: CachedPolygon) -> Chunk:
     """
     Wraps triangle as a chunk.
+
     :param triangle: input triangle
     :return: chunk wrapping the triangle with information about area
     and the perimeter

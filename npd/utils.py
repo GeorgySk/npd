@@ -21,6 +21,8 @@ T = TypeVar("T")
 
 def fast_length(geometry: Linear[Fraction]) -> float:
     """
+    Calculates the length of a segment or a contour using floats.
+
     :param geometry:
     :return:
     """
@@ -41,10 +43,7 @@ def fast_length(geometry: Linear[Fraction]) -> float:
 
 
 def to_segments(vertices: list[Point]) -> Iterator[Segment]:
-    """
-    Returns an iterator over consecutive segments
-    built on the given list of points
-    """
+    """Returns an iterator over consecutive segments on the points."""
     yield from map(Segment, vertices, vertices[1:])
 
 
@@ -53,6 +52,9 @@ def inverse_shoelace(area: Fraction,
                      base_start: Point,
                      base_end: Point) -> Point:
     """
+    Finds a point on the base line forming a triangle of the given area.
+
+    The triangle is formed by the endpoint, the base start and the point.
     :param area:
     :param endpoint:
     :param base_start:
@@ -80,6 +82,8 @@ def inverse_shoelace(area: Fraction,
 
 def slope_intercept(start: Point, end: Point) -> tuple[Fraction, Fraction]:
     """
+    Calculates the slope and the intercept of the line through two points.
+
     :param start:
     :param end:
     :return:
@@ -91,6 +95,8 @@ def slope_intercept(start: Point, end: Point) -> tuple[Fraction, Fraction]:
 
 def robust_sqrt(fraction: Fraction) -> Fraction:
     """
+    Calculates the square root of a fraction using decimals.
+
     :param fraction:
     :return:
     """
@@ -100,6 +106,8 @@ def robust_sqrt(fraction: Fraction) -> Fraction:
 
 def unite(geometries: Iterable[Polygon[Fraction]]) -> Polygon[Fraction]:
     """
+    Unites the given polygons into one geometry.
+
     :param geometries:
     :return:
     """

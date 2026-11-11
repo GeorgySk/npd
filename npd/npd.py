@@ -21,8 +21,8 @@ def split(polygon: Polygon[Fraction],
           requirements: list[Fraction],
           steiner_points_count: int) -> list[Polygon[Fraction]]:
     """
-    Splits a polygon into N parts where N is length of the list of
-    area requirements.
+    Splits a polygon into N parts where N is the number of requirements.
+
     :param polygon: input polygon, with or without holes
     :param requirements: list of area requirements (its sum must be
     equal to the area of the input polygon)
@@ -52,8 +52,8 @@ def split_into_two(polygon: Polygon[Fraction],
                    steiner_points_count: int
                    ) -> tuple[Polygon[Fraction], Polygon[Fraction]]:
     """
-    Splits a polygon into two parts according to the given area
-    requirement
+    Splits a polygon into two parts according to the area requirement.
+
     :param polygon: input polygon
     :param requirement: input area requirement (should be less or
     equal than the half of the polygon's area)
@@ -83,7 +83,8 @@ def to_partition(polygon: Polygon,
                  *,
                  delta: Fraction) -> Partition:
     """
-    Converts the given polygon to a Partition object
+    Converts the given polygon to a Partition object.
+
     :param polygon: input polygon
     :param delta: an approximate distance between Steiner points to be
     inserted in the polygon when performing triangulation
@@ -96,6 +97,8 @@ def to_partition(polygon: Polygon,
 def steiner_points(polygon: Polygon[Fraction],
                    delta: Fraction) -> list[Point[Fraction]]:
     """
+    Generates Steiner points inside and on the border of the polygon.
+
     :param polygon:
     :param delta:
     :return:

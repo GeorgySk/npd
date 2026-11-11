@@ -47,8 +47,8 @@ def is_satisfactory_chunk_found(partition: Partition,
                                 *,
                                 requirement: Fraction) -> bool:
     """
-    Checks if there is at least one chunk in the partition that
-    has a satisfactory area for a given area requirement
+    Checks if any chunk in the partition satisfies the area requirement.
+
     :param partition: input partition
     :param requirement: input area requirement
     :return: True if there is at least one satisfactory chunk
@@ -61,7 +61,8 @@ def is_satisfactory_area(area: Fraction,
                          *,
                          requirement) -> bool:
     """
-    Checks if the area is close enough to the area requirement
+    Checks if the area is close enough to the area requirement.
+
     :param area: area of a polygon
     :param requirement: area requirement
     :return: True if the areas area close enough
@@ -71,6 +72,8 @@ def is_satisfactory_area(area: Fraction,
 
 def join_pairs(partition: Partition) -> None:
     """
+    Merges the smallest chunks with their neighbors into compact pairs.
+
     :param partition:
     :return:
     """
@@ -90,6 +93,8 @@ def merge_least_compact(partition: Partition,
                         potential_sources: dict[Chunk, None],
                         potential_targets: dict[Chunk, None]) -> None:
     """
+    Merges the least compact source chunk with its best target neighbor.
+
     :param partition:
     :param potential_sources:
     :param potential_targets:
@@ -121,6 +126,8 @@ def merge_least_compact(partition: Partition,
 
 def swap_leaves(partition: Partition) -> None:
     """
+    Moves leaf triangles to the neighbor chunks surrounding them.
+
     Locates leaf triangles in chunks and moves them to the neighbor
     chunk if this triangle is surrounded by two triangles from that
     chunk
@@ -163,6 +170,8 @@ def join_small_chunks(partition: Partition,
                       *,
                       requirement: Fraction) -> None:
     """
+    Joins chunks with unsatisfactory areas with their neighbors.
+
     Finds chunks that are not close enough to the area requirement
     and joins them with their neighbors to form larger chunks.
     :param partition: input partition
@@ -196,7 +205,8 @@ def join_small_chunks(partition: Partition,
 
 def most_compact_pair(partition: Partition) -> tuple[Chunk, Chunk]:
     """
-    For the given partition, finds the most compact pair of chunks
+    Finds the most compact pair of chunks for the given partition.
+
     :param partition: input partition
     :return: a pair of the most compact chunks
     """
@@ -254,6 +264,8 @@ def remainder_as_partition(chunk: Chunk,
 def collect_remainder(chunk: Chunk,
                       partition: Partition) -> Chunk:
     """
+    Unites all the chunks except the given one into a single chunk.
+
     :param chunk:
     :param partition:
     :return:
@@ -273,6 +285,8 @@ def readjust(chunk: Chunk,
              requirement: Fraction,
              partition: Partition) -> tuple[Chunk, Chunk]:
     """
+    Moves triangles from the chunk to its neighbor to meet the requirement.
+
     :param chunk:
     :param neighbor:
     :param requirement:
@@ -326,6 +340,8 @@ def divide_border_edge_triangle(chunk: Chunk,
                                 neighbor: Chunk,
                                 partition: Partition) -> None:
     """
+    Splits a border-edge triangle of the chunk into two triangles.
+
     :param chunk: chunk where a node on the border will be found
     that will be split
     :param neighbor: neighbor chunk
@@ -349,6 +365,8 @@ def border_edge_triangle(chunk: Chunk,
                          neighbor: Chunk,
                          partition: Partition) -> CachedPolygon:
     """
+    Finds a border-edge triangle in the chunk.
+
     We call "border-edge" triangles those triangles that can be split
     so that the algorithm would be able to find a way to continue
     reassigning triangles from one chunk to another.
@@ -394,6 +412,8 @@ def edge_neighbor(triangle: CachedPolygon,
                   chunk: Chunk,
                   partition: Partition) -> CachedPolygon:
     """
+    Finds the neighbor of the triangle that should be split.
+
     :param triangle:
     :param chunk:
     :param partition:
@@ -420,6 +440,8 @@ def divide(partition: Partition,
            chunk: Chunk,
            neighbor: Chunk) -> tuple[CachedPolygon, CachedPolygon]:
     """
+    Splits the node by a segment from its pivot vertex to the new vertex.
+
     :param partition:
     :param node:
     :param pivot_index:
@@ -520,6 +542,8 @@ def final_node_refinement(node_to_split: CachedPolygon,
                           neighbor: Chunk,
                           partition: Partition) -> None:
     """
+    Splits the node so that the chunk area meets the requirement exactly.
+
     :param node_to_split: triangle to be split
     :param requirement: area requirement for this triangle
     :param chunk: chunk the triangle belongs to
@@ -555,6 +579,8 @@ def find_pivot(triangle: CachedPolygon,
                partition: Partition,
                chunk: Chunk) -> int:
     """
+    Finds the index of the vertex to split the triangle from.
+
     :param triangle:
     :param partition:
     :param chunk:
@@ -586,6 +612,8 @@ def add_triangles(chunk: Chunk,
                   requirement: Fraction,
                   partition: Partition) -> tuple[Chunk, Chunk]:
     """
+    Moves triangles from the neighbor to the chunk to meet the requirement.
+
     :param chunk:
     :param neighbor:
     :param requirement:
