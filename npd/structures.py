@@ -31,9 +31,7 @@ class ConvexPartition:
 
 
 class CachedPolygon(Polygon):
-    """
-    Polygon with hashed perimeter.
-    """
+    """Polygon with hashed perimeter."""
 
     slots = "_hash", "_perimeter"
 
@@ -52,16 +50,12 @@ class CachedPolygon(Polygon):
 
     @property
     def perimeter(self) -> float:
-        """
-        :return: hashed perimeter
-        """
+        """Hashed perimeter of the polygon."""
         return self._perimeter
 
 
 class Chunk:
-    """
-    Stores collection of triangles with their total area and perimeter.
-    """
+    """Stores collection of triangles with their total area and perimeter."""
 
     def __init__(self, *,
                  triangles: dict[CachedPolygon, None],
@@ -88,9 +82,7 @@ class Chunk:
         self._perimeter = value
 
     def compactness(self) -> float:
-        """
-        :return: compactness of the union of triangles
-        """
+        """Compactness of the union of triangles."""
         return self.area ** 0.5 / self.perimeter
 
 
