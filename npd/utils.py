@@ -1,12 +1,12 @@
 """Various utility functions"""
 import math
+from collections.abc import (Iterable,
+                             Iterator)
 from decimal import Decimal
 from fractions import Fraction
 from functools import reduce
 from operator import or_
-from typing import (Iterable,
-                    Iterator,
-                    TypeVar)
+from typing import TypeVar
 
 from gon.base import (Contour,
                       EMPTY,

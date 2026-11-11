@@ -1,10 +1,10 @@
 """Various classes designed to simplify the algorithm"""
+from collections.abc import (Iterator,
+                             Sequence)
 from dataclasses import dataclass
 from fractions import Fraction
 from itertools import chain
-from typing import (Iterator,
-                    Optional,
-                    Sequence)
+from typing import Optional
 
 from gon.base import (Contour,
                       Point,
