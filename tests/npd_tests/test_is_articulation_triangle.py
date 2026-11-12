@@ -1,9 +1,7 @@
 from fractions import Fraction
 
 from gon.base import Polygon
-from hypothesis import (Verbosity,
-                        given,
-                        settings)
+from hypothesis import (given)
 
 from npd.npd import to_partition
 from tests.strategies.base import (deltas,

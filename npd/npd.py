@@ -1,9 +1,8 @@
+"""Splitting of polygons into parts with the given areas."""
 import math
 from fractions import Fraction
 from itertools import (chain,
                        product)
-from typing import (List,
-                    Tuple)
 
 from gon.base import (Point,
                       Polygon)
@@ -20,11 +19,11 @@ context = get_context()
 
 def split(polygon: Polygon[Fraction],
           *,
-          requirements: List[Fraction],
-          steiner_points_count: int) -> List[Polygon[Fraction]]:
+          requirements: list[Fraction],
+          steiner_points_count: int) -> list[Polygon[Fraction]]:
     """
-    Splits a polygon into N parts where N is length of the list of
-    area requirements.
+    Splits a polygon into N parts where N is the number of requirements.
+
     :param polygon: input polygon, with or without holes
     :param requirements: list of area requirements (its sum must be
     equal to the area of the input polygon)
@@ -52,10 +51,10 @@ def split_into_two(polygon: Polygon[Fraction],
                    *,
                    requirement: Fraction,
                    steiner_points_count: int
-                   ) -> Tuple[Polygon[Fraction], Polygon[Fraction]]:
+                   ) -> tuple[Polygon[Fraction], Polygon[Fraction]]:
     """
-    Splits a polygon into two parts according to the given area
-    requirement
+    Splits a polygon into two parts according to the area requirement.
+
     :param polygon: input polygon
     :param requirement: input area requirement (should be less or
     equal than the half of the polygon's area)
@@ -71,7 +70,7 @@ def split_into_two(polygon: Polygon[Fraction],
     if polygon.is_convex:
         part, other = minimizing_split(contour=polygon.border,
                                        area_requirement=requirement,
-                                       key=lambda x, y: x.length)
+                                       key=lambda x, _: x.length)
         return Polygon(part), Polygon(other)
     delta = Fraction(math.sqrt(polygon.area / steiner_points_count))
     partition = to_partition(polygon, delta=delta)
@@ -85,7 +84,8 @@ def to_partition(polygon: Polygon,
                  *,
                  delta: Fraction) -> Partition:
     """
-    Converts the given polygon to a Partition object
+    Converts the given polygon to a Partition object.
+
     :param polygon: input polygon
     :param delta: an approximate distance between Steiner points to be
     inserted in the polygon when performing triangulation
@@ -96,8 +96,10 @@ def to_partition(polygon: Polygon,
 
 
 def steiner_points(polygon: Polygon[Fraction],
-                   delta: Fraction) -> List[Point[Fraction]]:
+                   delta: Fraction) -> list[Point[Fraction]]:
     """
+    Generates Steiner points inside and on the border of the polygon.
+
     :param polygon:
     :param delta:
     :return:
@@ -117,7 +119,7 @@ def steiner_points(polygon: Polygon[Fraction],
             continue
         delta_x = (segment.end.x - segment.start.x) / extra_points_count
         delta_y = (segment.end.y - segment.start.y) / extra_points_count
-        for i in range(1, extra_points_count + 1):
-            points_on_border.append(Point(segment.start.x + i * delta_x,
-                                          segment.start.y + i * delta_y))
+        points_on_border.extend(Point(segment.start.x + i * delta_x,
+                                      segment.start.y + i * delta_y)
+                                for i in range(1, extra_points_count + 1))
     return constrained_grid + points_on_border

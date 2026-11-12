@@ -1,0 +1,15 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v0.29.0
+_src_path: gh:GeorgySk/copier-pypackage
+ci_provider: github
+email: skorobogatovgeorgy+github@gmail.com
+full_name: Georgy Skorobogatov
+github_username: GeorgySk
+open_source_license: MIT license
+project_name: npd
+project_short_description: Non-convex polygon decomposition
+project_slug: npd
+python_version: '3.11'
+use_devcontainer: true
+use_docker_compose: true
+version: 0.2.0

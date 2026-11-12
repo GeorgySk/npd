@@ -1,7 +1,6 @@
 from fractions import Fraction
 from math import floor
 from numbers import Real
-from typing import List
 
 from hypothesis import strategies as st
 from hypothesis.strategies import SearchStrategy
@@ -45,30 +44,32 @@ partitions = st.builds(to_partition,
 MIN_PARTITION_SIZE = 1
 
 
-def to_partitions(sum_: Real,
+def to_partitions(sum_: Real,  # noqa: C901
                   *,
                   min_value: Real = 0,
                   size: int = MIN_PARTITION_SIZE,
-                  base: SearchStrategy[Real] = st.integers()
-                  ) -> SearchStrategy[List[Real]]:
+                  base: SearchStrategy[Real] | None = None
+                  ) -> SearchStrategy[list[Real]]:
+    if base is None:
+        base = st.integers()
     if size < MIN_PARTITION_SIZE:
-        raise ValueError('`size` should not be less '
-                         f'than {MIN_PARTITION_SIZE}.')
+        raise ValueError("`size` should not be less "
+                         f"than {MIN_PARTITION_SIZE}.")
     if not (0 <= min_value <= sum_):
-        raise ValueError(f'`min_value` should be in [0, {sum_}] interval.')
+        raise ValueError(f"`min_value` should be in [0, {sum_}] interval.")
     if min_value:
         max_size = floor(sum_ / min_value)
         if max_size < size:
-            raise ValueError(f'`size` should not be greater than {max_size}.')
+            raise ValueError(f"`size` should not be greater than {max_size}.")
 
-    def to_proportions(numbers: List[Real]) -> List[Real]:
+    def to_proportions(numbers: list[Real]) -> list[Real]:
         return [2 * abs(number) / (1 + number * number) for number in numbers]
 
-    def to_partition(proportions: List[Real]) -> List[Real]:
+    def to_partition(proportions: list[Real]) -> list[Real]:
         factor = sum_ / sum(proportions)
         return [proportion * factor for proportion in proportions]
 
-    def bound_minimum(partition: List[Real]) -> List[Real]:
+    def bound_minimum(partition: list[Real]) -> list[Real]:
         minimum = min(partition)
         if minimum >= min_value:
             return partition
@@ -79,7 +80,7 @@ def to_partitions(sum_: Real,
         return [max((part * slope + intercept) / denominator, min_value)
                 for part in partition]
 
-    def normalize(partition: List[Real]) -> List[Real]:
+    def normalize(partition: list[Real]) -> list[Real]:
         partition_sum = sum(partition)
         if partition_sum < sum_:
             arg_min = min(range(len(partition)),
@@ -91,7 +92,7 @@ def to_partitions(sum_: Real,
             partition[arg_max] -= partition_sum - sum_
         return partition
 
-    def is_valid(partition: List[Real]) -> bool:
+    def is_valid(partition: list[Real]) -> bool:
         return sum(partition) == sum_
 
     return (st.lists(base,

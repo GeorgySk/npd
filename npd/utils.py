@@ -1,33 +1,28 @@
-"""Various utility functions"""
+"""Various utility functions."""
 import math
+from collections.abc import (Iterable,
+                             Iterator)
 from decimal import Decimal
 from fractions import Fraction
 from functools import reduce
-from itertools import chain
 from operator import or_
-from typing import (Iterable,
-                    Iterator,
-                    List,
-                    Set,
-                    Tuple,
-                    TypeVar)
+from typing import TypeVar
 
 from gon.base import (Contour,
                       EMPTY,
                       Linear,
-                      Multipoint,
-                      Multisegment,
                       Orientation,
                       Point,
                       Polygon,
                       Segment)
-from ground.base import get_context
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def fast_length(geometry: Linear[Fraction]) -> float:
     """
+    Calculates the length of a segment or a contour using floats.
+
     :param geometry:
     :return:
     """
@@ -35,7 +30,7 @@ def fast_length(geometry: Linear[Fraction]) -> float:
         start = geometry.start
         end = geometry.end
         return math.sqrt((start.x - end.x) ** 2 + (start.y - end.y) ** 2)
-    elif isinstance(geometry, Contour):
+    if isinstance(geometry, Contour):
         result = 0
         for segment in geometry.segments:
             start = segment.start
@@ -43,21 +38,11 @@ def fast_length(geometry: Linear[Fraction]) -> float:
             result += math.sqrt((start.x - end.x) ** 2
                                 + (start.y - end.y) ** 2)
         return result
-    else:
-        raise TypeError(f"Cannot calculate length of type {type(geometry)}")
-    # context = get_context()
-    # original_sqrt = context.sqrt
-    # context._sqrt = math.sqrt
-    # result = geometry.length
-    # context._sqrt = original_sqrt
-    # return result
+    raise TypeError(f"Cannot calculate length of type {type(geometry)}")
 
 
-def to_segments(vertices: List[Point]) -> Iterator[Segment]:
-    """
-    Returns an iterator over consecutive segments
-    built on the given list of points
-    """
+def to_segments(vertices: list[Point]) -> Iterator[Segment]:
+    """Returns an iterator over consecutive segments on the points."""
     yield from map(Segment, vertices, vertices[1:])
 
 
@@ -66,6 +51,9 @@ def inverse_shoelace(area: Fraction,
                      base_start: Point,
                      base_end: Point) -> Point:
     """
+    Finds a point on the base line forming a triangle of the given area.
+
+    The triangle is formed by the endpoint, the base start and the point.
     :param area:
     :param endpoint:
     :param base_start:
@@ -91,8 +79,10 @@ def inverse_shoelace(area: Fraction,
     return Point(x_coordinate, y_coordinate)
 
 
-def slope_intercept(start: Point, end: Point) -> Tuple[Fraction, Fraction]:
+def slope_intercept(start: Point, end: Point) -> tuple[Fraction, Fraction]:
     """
+    Calculates the slope and the intercept of the line through two points.
+
     :param start:
     :param end:
     :return:
@@ -104,6 +94,8 @@ def slope_intercept(start: Point, end: Point) -> Tuple[Fraction, Fraction]:
 
 def robust_sqrt(fraction: Fraction) -> Fraction:
     """
+    Calculates the square root of a fraction using decimals.
+
     :param fraction:
     :return:
     """
@@ -113,6 +105,8 @@ def robust_sqrt(fraction: Fraction) -> Fraction:
 
 def unite(geometries: Iterable[Polygon[Fraction]]) -> Polygon[Fraction]:
     """
+    Unites the given polygons into one geometry.
+
     :param geometries:
     :return:
     """
