@@ -46,6 +46,10 @@ addopts = "--verbose -s --hypothesis-profile=default"
 [tool.mypy]
 strict = true
 
+[[tool.mypy.overrides]]
+module = ["gon", "gon.*", "ground", "ground.*", "pdan", "pdan.*"]
+ignore_missing_imports = true
+
 [tool.ruff]
 line-length = 79
 
