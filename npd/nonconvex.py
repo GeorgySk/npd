@@ -2,6 +2,7 @@
 import logging
 from fractions import Fraction
 from itertools import chain
+from typing import cast
 
 from gon.base import (Contour,
                       Point,
@@ -582,8 +583,8 @@ def find_pivot(triangle: CachedPolygon,
                                                            predecessor)
         oriented_edge = next(edge for edge in triangle.edges
                              if edge == unoriented_edge)
-        pivot_index: int = triangle.border.vertices.index(oriented_edge.end)
-        return pivot_index
+        return cast("int",
+                    triangle.border.vertices.index(oriented_edge.end))
     neighbor = next(
         (neighbor for neighbor in partition.triangle_neighbors(triangle)
          if neighbor not in chunk.triangles), None)
@@ -592,7 +593,7 @@ def find_pivot(triangle: CachedPolygon,
     unoriented_edge = partition.edge_between_triangles(triangle, neighbor)
     oriented_edge = next(edge for edge in triangle.edges
                          if edge == unoriented_edge)
-    return triangle.border.vertices.index(oriented_edge.start)
+    return cast("int", triangle.border.vertices.index(oriented_edge.start))
 
 
 def add_triangles(chunk: Chunk,
