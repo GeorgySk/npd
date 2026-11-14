@@ -12,7 +12,10 @@ authors = [
 readme = "README.md"
 license-files = ["LICENSE"]
 requires-python = ">=3.11,<4.0"
-dependencies = []
+dependencies = [
+    # 3.8 is the first release shipping inline type hints
+    "matplotlib>=3.8.0,<4.0.0"
+]
 
 [dependency-groups]
 docs = [
