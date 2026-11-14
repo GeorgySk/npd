@@ -16,7 +16,8 @@ from ground.base import get_context
 from npd.utils import fast_length
 
 NeighborChunkPerEdge = dict[frozenset[Segment[Fraction]], "Chunk"]
-TriangularMap = dict["CachedPolygon", dict[Segment[Fraction], "CachedPolygon"]]
+TriangularMap = dict["CachedPolygon",
+                     dict[Segment[Fraction], "CachedPolygon | None"]]
 
 
 @dataclass
@@ -324,8 +325,8 @@ def to_triangular_map(triangles: list[CachedPolygon]) -> TriangularMap:
     :return: a map that stores relation between neighboring triangles
     and shared segments
     """
-    triangular_map = {}
-    triangle_by_edge = {}
+    triangular_map: TriangularMap = {}
+    triangle_by_edge: dict[Segment[Fraction], CachedPolygon] = {}
     for triangle in triangles:
         triangular_map[triangle] = {}
         for edge in triangle.edges:
