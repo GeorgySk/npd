@@ -184,7 +184,7 @@ def join_small_chunks(partition: Partition,
     while potential_sources and len(partition.chunk_map) > PARTS_COUNT:
         source = min(potential_sources, key=Chunk.compactness)
         best_target = None
-        max_compactness = 0
+        max_compactness = 0.0
         neighbors = list(partition.chunk_neighbors(source))
         for neighbor in neighbors:
             area = source.area + neighbor.area
