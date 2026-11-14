@@ -111,7 +111,7 @@ def steiner_points(polygon: Polygon[Fraction],
     grid = [Point(box.min_x + x * delta, box.min_y + y * delta)
             for x, y in offsets_product]
     constrained_grid = [point for point in grid if point in polygon]
-    points_on_border = []
+    points_on_border: list[Point[Fraction]] = []
     for segment in chain(polygon.border.segments,
                          *[hole.segments for hole in polygon.holes]):
         extra_points_count = Fraction(fast_length(segment)) // delta
