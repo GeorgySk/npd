@@ -25,7 +25,7 @@ class ConvexPartition:
     domain: Segment[Fraction]
     countersegment: Segment[Fraction]
     right_vertices: list[Point[Fraction]]
-    left_vertices: [Point[Fraction]]
+    left_vertices: list[Point[Fraction]]
     area_difference: Fraction
 
 
