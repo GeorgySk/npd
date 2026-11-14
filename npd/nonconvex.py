@@ -582,7 +582,8 @@ def find_pivot(triangle: CachedPolygon,
                                                            predecessor)
         oriented_edge = next(edge for edge in triangle.edges
                              if edge == unoriented_edge)
-        return triangle.border.vertices.index(oriented_edge.end)
+        pivot_index: int = triangle.border.vertices.index(oriented_edge.end)
+        return pivot_index
     neighbor = next(
         (neighbor for neighbor in partition.triangle_neighbors(triangle)
          if neighbor not in chunk.triangles), None)
