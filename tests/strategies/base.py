@@ -1,6 +1,5 @@
 from fractions import Fraction
 from math import floor
-from numbers import Real
 
 from hypothesis import strategies as st
 from hypothesis.strategies import SearchStrategy
@@ -44,14 +43,14 @@ partitions = st.builds(to_partition,
 MIN_PARTITION_SIZE = 1
 
 
-def to_partitions(sum_: Real,  # noqa: C901
+def to_partitions(sum_: Fraction,  # noqa: C901
                   *,
-                  min_value: Real = 0,
+                  min_value: Fraction = Fraction(0),
                   size: int = MIN_PARTITION_SIZE,
-                  base: SearchStrategy[Real] | None = None
-                  ) -> SearchStrategy[list[Real]]:
+                  base: SearchStrategy[Fraction] | None = None
+                  ) -> SearchStrategy[list[Fraction]]:
     if base is None:
-        base = st.integers()
+        base = st.integers().map(Fraction)
     if size < MIN_PARTITION_SIZE:
         raise ValueError("`size` should not be less "
                          f"than {MIN_PARTITION_SIZE}.")
@@ -62,14 +61,14 @@ def to_partitions(sum_: Real,  # noqa: C901
         if max_size < size:
             raise ValueError(f"`size` should not be greater than {max_size}.")
 
-    def to_proportions(numbers: list[Real]) -> list[Real]:
+    def to_proportions(numbers: list[Fraction]) -> list[Fraction]:
         return [2 * abs(number) / (1 + number * number) for number in numbers]
 
-    def to_partition(proportions: list[Real]) -> list[Real]:
+    def to_partition(proportions: list[Fraction]) -> list[Fraction]:
         factor = sum_ / sum(proportions)
         return [proportion * factor for proportion in proportions]
 
-    def bound_minimum(partition: list[Real]) -> list[Real]:
+    def bound_minimum(partition: list[Fraction]) -> list[Fraction]:
         minimum = min(partition)
         if minimum >= min_value:
             return partition
@@ -80,7 +79,7 @@ def to_partitions(sum_: Real,  # noqa: C901
         return [max((part * slope + intercept) / denominator, min_value)
                 for part in partition]
 
-    def normalize(partition: list[Real]) -> list[Real]:
+    def normalize(partition: list[Fraction]) -> list[Fraction]:
         partition_sum = sum(partition)
         if partition_sum < sum_:
             arg_min = min(range(len(partition)),
@@ -92,7 +91,7 @@ def to_partitions(sum_: Real,  # noqa: C901
             partition[arg_max] -= partition_sum - sum_
         return partition
 
-    def is_valid(partition: list[Real]) -> bool:
+    def is_valid(partition: list[Fraction]) -> bool:
         return sum(partition) == sum_
 
     return (st.lists(base,
