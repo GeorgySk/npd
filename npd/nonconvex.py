@@ -113,20 +113,15 @@ def merge_least_compact(partition: Partition,
     :return:
     """
     source = min(potential_sources, key=Chunk.compactness)
-    best_target = None
-    max_compactness = 0.0
     neighbors = [neighbor for neighbor in partition.chunk_neighbors(source)
                  if neighbor in potential_targets]
     if not neighbors:
         potential_sources.pop(source)
         return
-    for neighbor in neighbors:
-        area = source.area + neighbor.area
-        perimeter = partition.union_perimeter(source, neighbor)
-        compactness_ = area ** 0.5 / perimeter
-        if compactness_ > max_compactness:
-            best_target = neighbor
-            max_compactness = compactness_
+    best_target = max(
+        neighbors,
+        key=lambda neighbor: ((source.area + neighbor.area) ** 0.5
+                              / partition.union_perimeter(source, neighbor)))
     potential_sources.pop(source)
     potential_sources.pop(best_target, None)
     potential_targets.pop(source)
