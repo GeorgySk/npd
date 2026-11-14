@@ -1,5 +1,6 @@
 """Various classes designed to simplify the algorithm."""
-from collections.abc import (Iterator,
+from collections.abc import (Collection,
+                             Iterator,
                              Sequence)
 from dataclasses import dataclass
 from fractions import Fraction
@@ -123,7 +124,7 @@ class Partition:
 
     def is_articulation_triangle(self,
                                  triangle_to_remove: CachedPolygon,
-                                 chunk_triangles: dict[CachedPolygon, None]
+                                 chunk_triangles: Collection[CachedPolygon]
                                  ) -> bool:
         """Checks if removing the triangle disconnects the given triangles."""
         if len(chunk_triangles) == 1:
@@ -137,7 +138,8 @@ class Partition:
             seen.add(chunk)
             stack.extend(neighbor
                          for neighbor in self.triangular_map[chunk].values()
-                         if neighbor not in seen
+                         if neighbor is not None
+                         and neighbor not in seen
                          and neighbor in chunk_triangles)
         return len(chunk_triangles) != len(seen)
 
