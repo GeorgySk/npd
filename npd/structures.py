@@ -29,7 +29,7 @@ class ConvexPartition:
     area_difference: Fraction
 
 
-class CachedPolygon(Polygon):
+class CachedPolygon(Polygon):  # type: ignore[misc]
     """Polygon with hashed perimeter."""
 
     slots = "_hash", "_perimeter"
