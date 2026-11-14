@@ -41,7 +41,7 @@ class CachedPolygon(Polygon):  # type: ignore[misc]
         if holes is None:
             holes = []
         super().__init__(border, holes)
-        self._hash = super().__hash__()
+        self._hash: int = super().__hash__()
         self._perimeter = (fast_length(self.border)
                            + sum(map(fast_length, holes)))
 
