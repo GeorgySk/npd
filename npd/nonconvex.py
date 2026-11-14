@@ -281,7 +281,7 @@ def readjust(chunk: Chunk,
     :return:
     """
     draw(*partition.chunk_map, red=chunk)
-    ignored_neighbors = {}
+    ignored_neighbors: dict[CachedPolygon, None] = {}
     while True:
         unignored_chunk_triangles = (triangle for triangle in chunk.triangles
                                      if triangle not in ignored_neighbors)
