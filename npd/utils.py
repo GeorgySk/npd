@@ -31,7 +31,7 @@ def fast_length(geometry: Linear[Fraction]) -> float:
         end = geometry.end
         return math.sqrt((start.x - end.x) ** 2 + (start.y - end.y) ** 2)
     if isinstance(geometry, Contour):
-        result = 0
+        result = 0.0
         for segment in geometry.segments:
             start = segment.start
             end = segment.end
