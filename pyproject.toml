@@ -50,7 +50,8 @@ addopts = "--verbose -s --hypothesis-profile=default"
 strict = true
 
 [[tool.mypy.overrides]]
-module = ["gon", "gon.*", "ground", "ground.*", "pdan", "pdan.*"]
+module = ["gon", "gon.*", "ground", "ground.*", "pdan", "pdan.*",
+          "hypothesis_geometry", "hypothesis_geometry.*"]
 ignore_missing_imports = true
 
 [tool.ruff]
