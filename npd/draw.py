@@ -2,6 +2,7 @@
 import inspect
 import random
 from functools import singledispatch
+from typing import TypeAlias
 
 import matplotlib.pyplot as plt
 from gon.base import (Contour,
@@ -13,34 +14,43 @@ from gon.base import (Contour,
 from npd.structures import Chunk
 
 Color = str | tuple[float, float, float, float]
-Drawable = Geometry | Chunk | list
+Drawable: TypeAlias = "Geometry | Chunk | list[Drawable]"
 
 
-def draw(*geometries: Drawable,
-         red: Drawable | None = None,
-         blue: Drawable | None = None) -> None:
-    """
-    Plots the geometries and blocks until the plot window is closed.
+class _Draw:
+    """Callable plotter that can be switched on and off via `DRAW`."""
 
-    Does nothing unless `draw.DRAW` is set to True.
-    :param geometries: geometries to plot in black
-    :param red: geometries to highlight in red
-    :param blue: geometries to highlight in blue
-    """
-    if not draw.DRAW:
-        return
-    for geometry in geometries:
-        _draw(geometry, color="black")
-    for color, highlighted in (("red", red), ("blue", blue)):
-        if not highlighted:
-            continue
-        for geometry in (highlighted if isinstance(highlighted, list)
-                         else [highlighted]):
-            _draw(geometry, color=color)
-    caller = inspect.stack()[1]
-    plt.title(f"{caller.function}:{caller.lineno}")
-    plt.axis("scaled")
-    plt.show(block=True)
+    DRAW: bool = False
+
+    def __call__(self,
+                 *geometries: Drawable,
+                 red: Drawable | None = None,
+                 blue: Drawable | None = None) -> None:
+        """
+        Plots the geometries and blocks until the plot window is closed.
+
+        Does nothing unless `draw.DRAW` is set to True.
+        :param geometries: geometries to plot in black
+        :param red: geometries to highlight in red
+        :param blue: geometries to highlight in blue
+        """
+        if not self.DRAW:
+            return
+        for geometry in geometries:
+            _draw(geometry, color="black")
+        for color, highlighted in (("red", red), ("blue", blue)):
+            if not highlighted:
+                continue
+            for geometry in (highlighted if isinstance(highlighted, list)
+                             else [highlighted]):
+                _draw(geometry, color=color)
+        caller = inspect.stack()[1]
+        plt.title(f"{caller.function}:{caller.lineno}")
+        plt.axis("scaled")
+        plt.show(block=True)
+
+
+draw = _Draw()
 
 
 @singledispatch
@@ -81,7 +91,7 @@ def _(geometry: Chunk, *, color: Color) -> None:
 
 
 @_draw.register(list)
-def _(geometry: list, *, color: Color) -> None:
+def _(geometry: list[Drawable], *, color: Color) -> None:
     for point in geometry:
         _draw(point, color=color)
 
@@ -91,9 +101,9 @@ def _draw_contour(contour: Contour,
                   color: Color,
                   fill: bool = False) -> None:
     vertices = [(point.x, point.y) for point in contour.vertices]
-    xs, ys = zip(*(vertices + vertices[:1]))
-    xs = list(map(float, xs))
-    ys = list(map(float, ys))
+    closed = vertices + vertices[:1]
+    xs = [float(x) for x, _ in closed]
+    ys = [float(y) for _, y in closed]
     if fill:
         plt.fill(xs, ys, color=color)
     plt.plot(xs, ys, color=color)
