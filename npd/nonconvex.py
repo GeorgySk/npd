@@ -196,8 +196,8 @@ def join_small_chunks(partition: Partition,
                 best_target = neighbor
                 max_compactness = compactness_
         potential_sources.pop(source)
-        potential_sources.pop(best_target, None)
         if best_target is not None:
+            potential_sources.pop(best_target, None)
             union = partition.unite(source, best_target)
             if (not requirement - union.area <= 2 * union.area - requirement
                     >= 0):
