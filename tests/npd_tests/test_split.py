@@ -3,8 +3,8 @@ from fractions import Fraction
 from gon.base import Polygon
 from hypothesis import given
 
-from npd.npd import (split,
-                     unite)
+from npd.npd import split
+from npd.utils import unite
 from tests.strategies.base import (polygons,
                                    requirements_fractions,
                                    steiner_points_counts)
