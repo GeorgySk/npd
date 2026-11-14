@@ -141,8 +141,6 @@ def swap_leaves(partition: Partition) -> None:
     :param partition: input partition that will be updated in-place
     """
     for chunk in partition.chunk_map:
-        triangle_to_move = None
-        neighbor_chunk = None
         for triangle in chunk.triangles:
             triangle_neighbors = list(partition.triangle_neighbors(triangle))
             if len(triangle_neighbors) != TRIANGLE_SIDES_COUNT:
@@ -162,13 +160,11 @@ def swap_leaves(partition: Partition) -> None:
                 if second_neighbor in chunk_neighbor.triangles)
             if first_neighbor_chunk != second_neighbor_chunk:
                 continue
-            triangle_to_move = triangle
-            neighbor_chunk = first_neighbor_chunk
-            break
-        if triangle_to_move is not None:
-            partition.move(triangle_to_move,
+            # safe to mutate `chunk.triangles`: we stop iterating right after
+            partition.move(triangle,
                            source=chunk,
-                           target=neighbor_chunk)
+                           target=first_neighbor_chunk)
+            break
 
 
 def join_small_chunks(partition: Partition,
