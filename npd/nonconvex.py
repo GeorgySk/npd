@@ -114,7 +114,7 @@ def merge_least_compact(partition: Partition,
     """
     source = min(potential_sources, key=Chunk.compactness)
     best_target = None
-    max_compactness = 0
+    max_compactness = 0.0
     neighbors = [neighbor for neighbor in partition.chunk_neighbors(source)
                  if neighbor in potential_targets]
     if not neighbors:
