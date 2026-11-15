@@ -1,4 +1,6 @@
 """Plotting of intermediate steps for debugging the algorithm."""
+from __future__ import annotations
+
 import inspect
 import random
 from functools import singledispatch
