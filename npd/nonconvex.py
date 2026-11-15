@@ -1,9 +1,8 @@
+"""Splitting of non-convex polygons by merging triangles into chunks."""
 import logging
-from copy import deepcopy
 from fractions import Fraction
 from itertools import chain
-from typing import (Dict,
-                    Tuple)
+from typing import cast
 
 from gon.base import (Contour,
                       Point,
@@ -19,16 +18,28 @@ from npd.utils import (fast_length,
 LOGGER = logging.getLogger(__name__)
 
 PLOT_STARTING_NUMBER = 20
+# leaves are swapped only once all chunks have at least this many triangles
+LEAF_SWAPPING_MIN_CHUNK_SIZE = 5
+# the partition is reduced to a chunk and the remainder
+PARTS_COUNT = 2
+TRIANGLE_SIDES_COUNT = 3
 
 
 def split(partition: Partition,
           *,
-          requirement: Fraction) -> Tuple[Chunk, Chunk]:
+          requirement: Fraction) -> tuple[Chunk, Chunk]:
+    """
+    Splits the partition into a chunk of the required area and the rest.
+
+    :param partition: partition of the polygon, updated in-place
+    :param requirement: area of the chunk to split off
+    :return: the chunk with the required area and the remainder chunk
+    """
     while not is_satisfactory_chunk_found(partition, requirement=requirement):
         join_pairs(partition)
         min_chunk_size = min(len(chunk.triangles)
                              for chunk in partition.chunk_map)
-        if min_chunk_size >= 5:
+        if min_chunk_size >= LEAF_SWAPPING_MIN_CHUNK_SIZE:
             swap_leaves(partition)
     join_small_chunks(partition, requirement=requirement)
     chunk, remainder = most_compact_pair(partition)
@@ -49,8 +60,8 @@ def is_satisfactory_chunk_found(partition: Partition,
                                 *,
                                 requirement: Fraction) -> bool:
     """
-    Checks if there is at least one chunk in the partition that
-    has a satisfactory area for a given area requirement
+    Checks if any chunk in the partition satisfies the area requirement.
+
     :param partition: input partition
     :param requirement: input area requirement
     :return: True if there is at least one satisfactory chunk
@@ -61,9 +72,10 @@ def is_satisfactory_chunk_found(partition: Partition,
 
 def is_satisfactory_area(area: Fraction,
                          *,
-                         requirement) -> bool:
+                         requirement: Fraction) -> bool:
     """
-    Checks if the area is close enough to the area requirement
+    Checks if the area is close enough to the area requirement.
+
     :param area: area of a polygon
     :param requirement: area requirement
     :return: True if the areas area close enough
@@ -73,6 +85,8 @@ def is_satisfactory_area(area: Fraction,
 
 def join_pairs(partition: Partition) -> None:
     """
+    Merges the smallest chunks with their neighbors into compact pairs.
+
     :param partition:
     :return:
     """
@@ -89,29 +103,26 @@ def join_pairs(partition: Partition) -> None:
 
 
 def merge_least_compact(partition: Partition,
-                        potential_sources: Dict[Chunk, None],
-                        potential_targets: Dict[Chunk, None]) -> None:
+                        potential_sources: dict[Chunk, None],
+                        potential_targets: dict[Chunk, None]) -> None:
     """
+    Merges the least compact source chunk with its best target neighbor.
+
     :param partition:
     :param potential_sources:
     :param potential_targets:
     :return:
     """
     source = min(potential_sources, key=Chunk.compactness)
-    best_target = None
-    max_compactness = 0
     neighbors = [neighbor for neighbor in partition.chunk_neighbors(source)
                  if neighbor in potential_targets]
     if not neighbors:
         potential_sources.pop(source)
         return
-    for neighbor in neighbors:
-        area = source.area + neighbor.area
-        perimeter = partition.union_perimeter(source, neighbor)
-        compactness_ = area ** 0.5 / perimeter
-        if compactness_ > max_compactness:
-            best_target = neighbor
-            max_compactness = compactness_
+    best_target = max(
+        neighbors,
+        key=lambda neighbor: ((source.area + neighbor.area) ** 0.5
+                              / partition.union_perimeter(source, neighbor)))
     potential_sources.pop(source)
     potential_sources.pop(best_target, None)
     potential_targets.pop(source)
@@ -123,19 +134,17 @@ def merge_least_compact(partition: Partition,
 
 def swap_leaves(partition: Partition) -> None:
     """
+    Moves leaf triangles to the neighbor chunks surrounding them.
+
     Locates leaf triangles in chunks and moves them to the neighbor
     chunk if this triangle is surrounded by two triangles from that
     chunk
     :param partition: input partition that will be updated in-place
     """
     for chunk in partition.chunk_map:
-        triangle_to_move = None
-        neighbor_chunk = None
         for triangle in chunk.triangles:
-            triangle_neighbors = [
-                neighbor
-                for neighbor in partition.triangle_neighbors(triangle)]
-            if len(triangle_neighbors) != 3:
+            triangle_neighbors = list(partition.triangle_neighbors(triangle))
+            if len(triangle_neighbors) != TRIANGLE_SIDES_COUNT:
                 continue
             if sum(neighbor in chunk.triangles
                    for neighbor in triangle_neighbors) != 1:
@@ -152,19 +161,19 @@ def swap_leaves(partition: Partition) -> None:
                 if second_neighbor in chunk_neighbor.triangles)
             if first_neighbor_chunk != second_neighbor_chunk:
                 continue
-            triangle_to_move = triangle
-            neighbor_chunk = first_neighbor_chunk
-            break
-        if triangle_to_move is not None:
-            partition.move(triangle_to_move,
+            # safe to mutate `chunk.triangles`: we stop iterating right after
+            partition.move(triangle,
                            source=chunk,
-                           target=neighbor_chunk)
+                           target=first_neighbor_chunk)
+            break
 
 
 def join_small_chunks(partition: Partition,
                       *,
                       requirement: Fraction) -> None:
     """
+    Joins chunks with unsatisfactory areas with their neighbors.
+
     Finds chunks that are not close enough to the area requirement
     and joins them with their neighbors to form larger chunks.
     :param partition: input partition
@@ -173,10 +182,10 @@ def join_small_chunks(partition: Partition,
     potential_sources = dict.fromkeys(
         chunk for chunk in partition.chunk_map
         if not is_satisfactory_area(chunk.area, requirement=requirement))
-    while potential_sources and len(partition.chunk_map) > 2:
+    while potential_sources and len(partition.chunk_map) > PARTS_COUNT:
         source = min(potential_sources, key=Chunk.compactness)
         best_target = None
-        max_compactness = 0
+        max_compactness = 0.0
         neighbors = list(partition.chunk_neighbors(source))
         for neighbor in neighbors:
             area = source.area + neighbor.area
@@ -188,24 +197,25 @@ def join_small_chunks(partition: Partition,
                 best_target = neighbor
                 max_compactness = compactness_
         potential_sources.pop(source)
-        potential_sources.pop(best_target, None)
         if best_target is not None:
+            potential_sources.pop(best_target, None)
             union = partition.unite(source, best_target)
             if (not requirement - union.area <= 2 * union.area - requirement
                     >= 0):
                 potential_sources.setdefault(union)
 
 
-def most_compact_pair(partition: Partition) -> Tuple[Chunk, Chunk]:
+def most_compact_pair(partition: Partition) -> tuple[Chunk, Chunk]:
     """
-    For the given partition, finds the most compact pair of chunks
+    Finds the most compact pair of chunks for the given partition.
+
     :param partition: input partition
     :return: a pair of the most compact chunks
     """
-    perimeter_edges = set(
+    perimeter_edges = {
         edge for triangle, neighbor_map in partition.triangular_map.items()
         for edge, neighbor in neighbor_map.items()
-        if neighbor is None)
+        if neighbor is None}
     total_perimeter = sum(map(fast_length, perimeter_edges))
     max_compactness = 0
     best_chunk = None
@@ -216,13 +226,13 @@ def most_compact_pair(partition: Partition) -> Tuple[Chunk, Chunk]:
         remainder_area = partition.total_area - chunk.area
         chunk_edges = {edge for triangle in chunk.triangles
                        for edge in partition.triangular_map[triangle]}
-        common_edges = set(edge for edge in chunk_edges
-                           if edge in perimeter_edges)
-        chunk_only_edges = set(
+        common_edges = {edge for edge in chunk_edges
+                        if edge in perimeter_edges}
+        chunk_only_edges = {
             edge
             for triangle in chunk.triangles
             for edge, neighbor in partition.triangular_map[triangle].items()
-            if neighbor is not None and neighbor not in chunk.triangles)
+            if neighbor is not None and neighbor not in chunk.triangles}
         chunk_only_perimeter = sum(map(fast_length, chunk_only_edges))
         common_perimeter = sum(map(fast_length, common_edges))
         remainder_perimeter = (total_perimeter - common_perimeter
@@ -239,28 +249,16 @@ def most_compact_pair(partition: Partition) -> Tuple[Chunk, Chunk]:
     return best_chunk, remainder
 
 
-def remainder_as_partition(chunk: Chunk,
-                           partition: Partition) -> Partition:
-    partition = deepcopy(partition)
-    # remove triangles including neighbors
-    # remove the chunk including neighbors
-    while len(partition.chunk_map) > 2:
-        neighbor = partition.chunk_neighbors(chunk)[0]
-        neighbors_neighbor = next(
-            node for node in partition.chunk_neighbors(neighbor)
-            if node != chunk)
-        partition.unite(neighbor, neighbors_neighbor)
-    return partition.chunk_neighbors(chunk)[0]
-
-
 def collect_remainder(chunk: Chunk,
                       partition: Partition) -> Chunk:
     """
+    Unites all the chunks except the given one into a single chunk.
+
     :param chunk:
     :param partition:
     :return:
     """
-    while len(partition.chunk_map) > 2:
+    while len(partition.chunk_map) > PARTS_COUNT:
         neighbor = partition.chunk_neighbors(chunk)[0]
         neighbors_neighbor = next(
             node for node in partition.chunk_neighbors(neighbor)
@@ -273,8 +271,10 @@ def readjust(chunk: Chunk,
              neighbor: Chunk,
              *,
              requirement: Fraction,
-             partition: Partition) -> Tuple[Chunk, Chunk]:
+             partition: Partition) -> tuple[Chunk, Chunk]:
     """
+    Moves triangles from the chunk to its neighbor to meet the requirement.
+
     :param chunk:
     :param neighbor:
     :param requirement:
@@ -282,7 +282,7 @@ def readjust(chunk: Chunk,
     :return:
     """
     draw(*partition.chunk_map, red=chunk)
-    ignored_neighbors = {}
+    ignored_neighbors: dict[CachedPolygon, None] = {}
     while True:
         unignored_chunk_triangles = (triangle for triangle in chunk.triangles
                                      if triangle not in ignored_neighbors)
@@ -298,7 +298,6 @@ def readjust(chunk: Chunk,
             ignored_neighbors = {}
             continue
         if border_triangle is None:
-            # border = dict.fromkeys(partition.border_triangles(chunk))
             divide_border_edge_triangle(chunk, neighbor, partition)
             border_triangle = next(
                 triangle for triangle in partition.border_triangles(chunk)
@@ -313,7 +312,7 @@ def readjust(chunk: Chunk,
         draw(*partition.chunk_map, blue=chunk)
         if chunk.area == requirement:
             return chunk, neighbor
-        elif chunk.area < requirement:
+        if chunk.area < requirement:
             partition.move(border_triangle,
                            source=neighbor,
                            target=chunk)
@@ -329,6 +328,8 @@ def divide_border_edge_triangle(chunk: Chunk,
                                 neighbor: Chunk,
                                 partition: Partition) -> None:
     """
+    Splits a border-edge triangle of the chunk into two triangles.
+
     :param chunk: chunk where a node on the border will be found
     that will be split
     :param neighbor: neighbor chunk
@@ -352,6 +353,8 @@ def border_edge_triangle(chunk: Chunk,
                          neighbor: Chunk,
                          partition: Partition) -> CachedPolygon:
     """
+    Finds a border-edge triangle in the chunk.
+
     We call "border-edge" triangles those triangles that can be split
     so that the algorithm would be able to find a way to continue
     reassigning triangles from one chunk to another.
@@ -369,7 +372,8 @@ def border_edge_triangle(chunk: Chunk,
         chunk_triangles_count = sum(
             triangle_neighbor in chunk.triangles
             for triangle_neighbor in triangle_neighbors)
-        if neighbor_triangles_count != 1 or chunk_triangles_count != 2:
+        if (neighbor_triangles_count != 1
+                or chunk_triangles_count != TRIANGLE_SIDES_COUNT - 1):
             continue
         triangle_neighbor_triangle = next(
             triangle_neighbor
@@ -397,6 +401,8 @@ def edge_neighbor(triangle: CachedPolygon,
                   chunk: Chunk,
                   partition: Partition) -> CachedPolygon:
     """
+    Finds the neighbor of the triangle that should be split.
+
     :param triangle:
     :param chunk:
     :param partition:
@@ -416,13 +422,15 @@ def edge_neighbor(triangle: CachedPolygon,
     raise ValueError("Couldn't find edge neighbor.")
 
 
-def divide(partition: Partition,
+def divide(partition: Partition,  # noqa: PLR0917, PLR0913
            node: CachedPolygon,
            pivot_index: int,
            new_vertex: Point,
            chunk: Chunk,
-           neighbor: Chunk) -> Tuple[CachedPolygon, CachedPolygon]:
+           neighbor: Chunk) -> tuple[CachedPolygon, CachedPolygon]:
     """
+    Splits the node by a segment from its pivot vertex to the new vertex.
+
     :param partition:
     :param node:
     :param pivot_index:
@@ -523,6 +531,8 @@ def final_node_refinement(node_to_split: CachedPolygon,
                           neighbor: Chunk,
                           partition: Partition) -> None:
     """
+    Splits the node so that the chunk area meets the requirement exactly.
+
     :param node_to_split: triangle to be split
     :param requirement: area requirement for this triangle
     :param chunk: chunk the triangle belongs to
@@ -542,12 +552,12 @@ def final_node_refinement(node_to_split: CachedPolygon,
         base_end=vertices[pivot_index - 2])
     draw(*partition.chunk_map,
          red=[node_to_split, vertices[pivot_index]], blue=[chunk, new_vertex])
-    left, right = divide(partition,
-                         node=node_to_split,
-                         pivot_index=pivot_index,
-                         new_vertex=new_vertex,
-                         chunk=chunk,
-                         neighbor=neighbor)
+    _, right = divide(partition,
+                      node=node_to_split,
+                      pivot_index=pivot_index,
+                      new_vertex=new_vertex,
+                      chunk=chunk,
+                      neighbor=neighbor)
     partition.move(right,
                    source=chunk,
                    target=neighbor)
@@ -558,6 +568,8 @@ def find_pivot(triangle: CachedPolygon,
                partition: Partition,
                chunk: Chunk) -> int:
     """
+    Finds the index of the vertex to split the triangle from.
+
     :param triangle:
     :param partition:
     :param chunk:
@@ -571,7 +583,8 @@ def find_pivot(triangle: CachedPolygon,
                                                            predecessor)
         oriented_edge = next(edge for edge in triangle.edges
                              if edge == unoriented_edge)
-        return triangle.border.vertices.index(oriented_edge.end)
+        return cast("int",
+                    triangle.border.vertices.index(oriented_edge.end))
     neighbor = next(
         (neighbor for neighbor in partition.triangle_neighbors(triangle)
          if neighbor not in chunk.triangles), None)
@@ -580,15 +593,17 @@ def find_pivot(triangle: CachedPolygon,
     unoriented_edge = partition.edge_between_triangles(triangle, neighbor)
     oriented_edge = next(edge for edge in triangle.edges
                          if edge == unoriented_edge)
-    return triangle.border.vertices.index(oriented_edge.start)
+    return cast("int", triangle.border.vertices.index(oriented_edge.start))
 
 
 def add_triangles(chunk: Chunk,
                   neighbor: Chunk,
                   *,
                   requirement: Fraction,
-                  partition: Partition) -> Tuple[Chunk, Chunk]:
+                  partition: Partition) -> tuple[Chunk, Chunk]:
     """
+    Moves triangles from the neighbor to the chunk to meet the requirement.
+
     :param chunk:
     :param neighbor:
     :param requirement:

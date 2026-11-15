@@ -1,11 +1,10 @@
 from fractions import Fraction
-from typing import List
 
 from gon.base import Polygon
 from hypothesis import given
 
-from npd.npd import (split,
-                     unite)
+from npd.npd import split
+from npd.utils import unite
 from tests.strategies.base import (polygons,
                                    requirements_fractions,
                                    steiner_points_counts)
@@ -15,7 +14,7 @@ from tests.strategies.base import (polygons,
        requirements_fractions=requirements_fractions,
        steiner_points_count=steiner_points_counts)
 def test_nodes_unions_equality(polygon: Polygon[Fraction],
-                               requirements_fractions: List[Fraction],
+                               requirements_fractions: list[Fraction],
                                steiner_points_count: int) -> None:
     requirements = [requirement * polygon.area
                     for requirement in requirements_fractions]
@@ -30,7 +29,7 @@ def test_nodes_unions_equality(polygon: Polygon[Fraction],
        requirements_fractions=requirements_fractions,
        steiner_points_count=steiner_points_counts)
 def test_nodes_validity(polygon: Polygon[Fraction],
-                        requirements_fractions: List[Fraction],
+                        requirements_fractions: list[Fraction],
                         steiner_points_count: int) -> None:
     requirements = [requirement * polygon.area
                     for requirement in requirements_fractions]

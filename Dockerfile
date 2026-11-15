@@ -1,9 +1,8 @@
 ARG PYTHON_IMAGE_VERSION
+ARG IMAGE_TYPE
 
-FROM python:${PYTHON_IMAGE_VERSION}
-
+FROM python:${PYTHON_IMAGE_VERSION} AS base
 ARG POETRY_VERSION
-ARG DEV_IMAGE
 
 WORKDIR /opt/npd
 
@@ -11,15 +10,16 @@ RUN pip install "poetry==${POETRY_VERSION}" && \
     poetry config virtualenvs.create false
 
 COPY README.md .
+COPY docs/ docs/
 COPY tests/ tests/
 COPY npd/ npd/
 COPY pyproject.toml .
+COPY LICENSE .
 
-RUN if [ "${DEV_IMAGE}" = "true" ]; then \
-        poetry install; \
-    elif [ "${DEV_IMAGE}" = "false" ]; then \
-        poetry install --without dev; \
-    else \
-        echo "Invalid value specified for DEV_IMAGE: '${DEV_IMAGE}'"; \
-        exit 1; \
-    fi
+FROM base AS prod
+RUN poetry install
+
+FROM base AS dev
+RUN poetry install --with dev
+
+FROM ${IMAGE_TYPE}

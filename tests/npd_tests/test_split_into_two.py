@@ -1,11 +1,8 @@
 import logging
-import math
 from fractions import Fraction
 
 from gon.base import Polygon
-from hypothesis import (Verbosity,
-                        given,
-                        settings)
+from hypothesis import given
 
 from npd.draw import draw
 from npd.npd import split_into_two
@@ -34,9 +31,6 @@ def test_nodes_unions_equality(polygon: Polygon[Fraction],
     draw.DRAW = False
 
     assert True
-    # union = first_part | second_part
-    # note(f"Resulting union: {union}\n")
-    # assert polygon == first_part | second_part
 
 
 @given(polygon=polygons,
@@ -45,10 +39,6 @@ def test_nodes_unions_equality(polygon: Polygon[Fraction],
 def test_nodes_validity(polygon: Polygon[Fraction],
                         unit_area_fraction: Fraction,
                         steiner_points_count: int) -> None:
-    if not hasattr(test_nodes_unions_equality, 'count'):
-        test_nodes_unions_equality.count = 1
-    else:
-        test_nodes_unions_equality.count += 1
     requirement = polygon.area * unit_area_fraction
     draw(polygon)
     first_part, second_part = split_into_two(
