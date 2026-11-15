@@ -31,6 +31,19 @@ polygons = planar.polygons(coordinates,
                            max_holes_size=MAX_HOLES_SIZE,
                            min_hole_size=MIN_HOLE_SIZE,
                            max_hole_size=MAX_HOLE_SIZE)
+# Generating Steiner points is cheap (no triangulation), so its tests
+# can afford non-convex polygons with holes. Holes need a wider grid than
+# `coordinates` gives (on it no holes are generated at all), and even then
+# only ~6% of polygons get one unless at least one is required.
+wide_coordinates = st.fractions(0, 4, max_denominator=2)
+varied_polygons = st.one_of(
+    planar.polygons(wide_coordinates,
+                    max_size=8),
+    planar.polygons(wide_coordinates,
+                    max_size=8,
+                    min_holes_size=1,
+                    max_holes_size=2,
+                    max_hole_size=4))
 steiner_points_counts = st.integers(MIN_STEINER_POINTS_COUNT,
                                     MAX_STEINER_POINTS_COUNT)
 unit_area_fractions = st.fractions(MIN_REQUIREMENT_FRACTION,

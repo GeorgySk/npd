@@ -100,9 +100,9 @@ def steiner_points(polygon: Polygon[Fraction],
     """
     Generates Steiner points inside and on the border of the polygon.
 
-    :param polygon:
-    :param delta:
-    :return:
+    :param polygon: input polygon
+    :param delta: an approximate distance between the points
+    :return: distinct points that aren't vertices of the polygon
     """
     box = context.polygon_box(polygon)
     xs_grid_count = (box.max_x - box.min_x) // delta
@@ -121,5 +121,12 @@ def steiner_points(polygon: Polygon[Fraction],
         delta_y = (segment.end.y - segment.start.y) / extra_points_count
         points_on_border.extend(Point(segment.start.x + i * delta_x,
                                       segment.start.y + i * delta_y)
-                                for i in range(1, extra_points_count + 1))
-    return constrained_grid + points_on_border
+                                for i in range(1, extra_points_count))
+    vertices = set(chain(polygon.border.vertices,
+                         *[hole.vertices for hole in polygon.holes]))
+    # Grid points can land on the border, repeating a border point or
+    # hitting a polygon vertex; `dict.fromkeys` drops repeats in order.
+    return [point
+            for point in dict.fromkeys(chain(constrained_grid,
+                                             points_on_border))
+            if point not in vertices]
