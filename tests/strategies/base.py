@@ -3,7 +3,13 @@ from math import floor
 
 from hypothesis import strategies as st
 from hypothesis.strategies import SearchStrategy
+from gon.base import (Polygon,
+                      Triangulation)
+from ground.base import get_context
 from hypothesis_geometry import planar
+
+from npd.npd import steiner_points
+from npd.structures import CachedPolygon
 
 from tests.config import (MAX_COORDINATE,
                           MAX_DENOMINATOR,
@@ -52,6 +58,27 @@ deltas = st.fractions(Fraction(1, 10), Fraction(1))
 # dozen triangles, so uniting them stays fast.
 sparse_deltas = st.fractions(Fraction(1, 2), Fraction(1))
 MAX_POLYGONS_LIST_SIZE = 4
+
+
+def to_polygon_with_triangles(polygon: Polygon[Fraction],
+                              delta: Fraction
+                              ) -> tuple[Polygon[Fraction],
+                                         list[CachedPolygon]]:
+    """Triangulates the polygon the same way `Partition` does."""
+    triangulation = Triangulation.constrained_delaunay(
+        polygon,
+        extra_points=steiner_points(polygon, delta),
+        context=get_context())
+    return polygon, list(map(CachedPolygon, triangulation.triangles()))
+
+
+polygons_with_triangles = st.builds(to_polygon_with_triangles,
+                                    varied_polygons,
+                                    sparse_deltas)
+triangles_lists_with_permutations = polygons_with_triangles.flatmap(
+    lambda polygon_with_triangles: st.tuples(
+        st.just(polygon_with_triangles[1]),
+        st.permutations(polygon_with_triangles[1])))
 polygons_lists = st.lists(polygons,
                           min_size=1,
                           max_size=MAX_POLYGONS_LIST_SIZE)
