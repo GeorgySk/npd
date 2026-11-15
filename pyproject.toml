@@ -17,7 +17,7 @@ dependencies = [
     "ground>=8.2.0,<9.0.0",
     # 3.8 is the first release shipping inline type hints
     "matplotlib>=3.8.0,<4.0.0",
-    "pdan>=0.1.9,<0.2.0"
+    "pdan>=0.2.0,<0.3.0"
 ]
 
 [dependency-groups]
