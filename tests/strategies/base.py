@@ -5,7 +5,6 @@ from hypothesis import strategies as st
 from hypothesis.strategies import SearchStrategy
 from hypothesis_geometry import planar
 
-from npd.npd import to_partition
 from tests.config import (MAX_COORDINATE,
                           MAX_DENOMINATOR,
                           MAX_HOLES_SIZE,
@@ -59,9 +58,6 @@ polygons_lists = st.lists(polygons,
 polygons_lists_with_permutations = polygons_lists.flatmap(
     lambda polygons_list: st.tuples(st.just(polygons_list),
                                     st.permutations(polygons_list)))
-partitions = st.builds(to_partition,
-                       polygon=polygons,
-                       delta=deltas)
 
 MIN_PARTITION_SIZE = 1
 
@@ -87,7 +83,7 @@ def to_partitions(sum_: Fraction,  # noqa: C901
     def to_proportions(numbers: list[Fraction]) -> list[Fraction]:
         return [2 * abs(number) / (1 + number * number) for number in numbers]
 
-    def to_partition(proportions: list[Fraction]) -> list[Fraction]:
+    def scale_to_sum(proportions: list[Fraction]) -> list[Fraction]:
         factor = sum_ / sum(proportions)
         return [proportion * factor for proportion in proportions]
 
@@ -122,7 +118,7 @@ def to_partitions(sum_: Fraction,  # noqa: C901
                      max_size=size)
             .filter(any)
             .map(to_proportions)
-            .map(to_partition)
+            .map(scale_to_sum)
             .map(bound_minimum)
             .map(normalize)
             .filter(is_valid))

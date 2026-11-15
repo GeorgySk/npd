@@ -80,7 +80,7 @@ def split_into_two(polygon: Polygon[Fraction],
     return part, other
 
 
-def to_partition(polygon: Polygon,
+def to_partition(polygon: Polygon[Fraction],
                  *,
                  delta: Fraction) -> Partition:
     """
