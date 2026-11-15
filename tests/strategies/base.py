@@ -36,6 +36,16 @@ steiner_points_counts = st.integers(MIN_STEINER_POINTS_COUNT,
 unit_area_fractions = st.fractions(MIN_REQUIREMENT_FRACTION,
                                    MAX_REQUIREMENT_FRACTION)
 deltas = st.fractions(Fraction(1, 10), Fraction(1))
+# Steiner points spaced at least this far apart keep partitions to a few
+# dozen triangles, so uniting them stays fast.
+sparse_deltas = st.fractions(Fraction(1, 2), Fraction(1))
+MAX_POLYGONS_LIST_SIZE = 4
+polygons_lists = st.lists(polygons,
+                          min_size=1,
+                          max_size=MAX_POLYGONS_LIST_SIZE)
+polygons_lists_with_permutations = polygons_lists.flatmap(
+    lambda polygons_list: st.tuples(st.just(polygons_list),
+                                    st.permutations(polygons_list)))
 partitions = st.builds(to_partition,
                        polygon=polygons,
                        delta=deltas)

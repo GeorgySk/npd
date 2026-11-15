@@ -8,9 +8,11 @@ from functools import reduce
 from operator import or_
 from typing import TypeVar
 
-from gon.base import (Contour,
-                      EMPTY,
+from gon.base import (EMPTY,
+                      Contour,
+                      Empty,
                       Linear,
+                      Multipolygon,
                       Orientation,
                       Point,
                       Polygon,
@@ -41,15 +43,16 @@ def fast_length(geometry: Linear[Fraction]) -> float:
     raise TypeError(f"Cannot calculate length of type {type(geometry)}")
 
 
-def to_segments(vertices: list[Point]) -> Iterator[Segment]:
+def to_segments(vertices: list[Point[Fraction]]
+                ) -> Iterator[Segment[Fraction]]:
     """Returns an iterator over consecutive segments on the points."""
     yield from map(Segment, vertices, vertices[1:])
 
 
 def inverse_shoelace(area: Fraction,
-                     endpoint: Point,
-                     base_start: Point,
-                     base_end: Point) -> Point:
+                     endpoint: Point[Fraction],
+                     base_start: Point[Fraction],
+                     base_end: Point[Fraction]) -> Point[Fraction]:
     """
     Finds a point on the base line forming a triangle of the given area.
 
@@ -79,7 +82,8 @@ def inverse_shoelace(area: Fraction,
     return Point(x_coordinate, y_coordinate)
 
 
-def slope_intercept(start: Point, end: Point) -> tuple[Fraction, Fraction]:
+def slope_intercept(start: Point[Fraction],
+                    end: Point[Fraction]) -> tuple[Fraction, Fraction]:
     """
     Calculates the slope and the intercept of the line through two points.
 
@@ -103,11 +107,15 @@ def robust_sqrt(fraction: Fraction) -> Fraction:
                      / Decimal(fraction.denominator)).sqrt())
 
 
-def unite(geometries: Iterable[Polygon[Fraction]]) -> Polygon[Fraction]:
+def unite(polygons: Iterable[Polygon[Fraction]]
+          ) -> Polygon[Fraction] | Multipolygon[Fraction] | Empty:
     """
     Unites the given polygons into one geometry.
 
-    :param geometries:
-    :return:
+    gon has no n-ary union, so this folds its binary ``|`` operator.
+
+    :param polygons: polygons to unite
+    :return: a ``Polygon`` if the union is connected, a ``Multipolygon``
+    if it is not, and ``EMPTY`` if no polygons were given
     """
-    return reduce(or_, geometries, EMPTY)
+    return reduce(or_, polygons, EMPTY)
