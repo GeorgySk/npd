@@ -1,5 +1,9 @@
+import matplotlib as mpl
 import pytest
 from hypothesis import HealthCheck, settings
+
+# Never open plot windows during tests.
+mpl.use("Agg")
 
 settings.register_profile(
     "default",
