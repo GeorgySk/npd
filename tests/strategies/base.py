@@ -79,6 +79,7 @@ polygons_with_triangles = st.builds(to_polygon_with_triangles,
 triangles = planar.triangular_contours(wide_coordinates).map(CachedPolygon)
 triangles_lists = st.lists(triangles, min_size=1, max_size=4)
 scales = st.floats(1e-3, 1e3)
+positive_fractions = st.fractions(0).filter(bool)
 triangular_maps = polygons_with_triangles.map(
     lambda polygon_with_triangles: to_triangular_map(
         polygon_with_triangles[1]))

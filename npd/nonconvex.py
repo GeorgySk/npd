@@ -74,13 +74,30 @@ def is_satisfactory_area(area: Fraction,
                          *,
                          requirement: Fraction) -> bool:
     """
-    Checks if the area is close enough to the area requirement.
+    Checks if chunks should stop being joined to approach the requirement.
 
-    :param area: area of a polygon
+    Joining pairs of chunks roughly doubles their area. It's worth
+    stopping once the next doubling would overshoot the requirement and
+    leave a gap at least as large as the current one::
+
+        |requirement - area| <= |2 * area - requirement|
+        and 2 * area >= requirement
+
+    If ``area >= requirement``, this always holds, since doubling only
+    moves further away. If ``requirement / 2 <= area < requirement``, it
+    becomes ``requirement - area <= 2 * area - requirement``, that is
+    ``area >= 2/3 * requirement``. If ``area < requirement / 2``, the next
+    doubling still undershoots and gets closer, so it never holds. All
+    cases together reduce to ``3 * area >= 2 * requirement``.
+
+    The doubling is only approximate, as joined chunks can differ in
+    size, so the 2/3 threshold is a heuristic, not a guarantee.
+
+    :param area: area of a chunk
     :param requirement: area requirement
-    :return: True if the areas area close enough
+    :return: True if the chunk is close enough to stop joining
     """
-    return requirement - area <= 2 * area - requirement >= 0
+    return 3 * area >= 2 * requirement
 
 
 def join_pairs(partition: Partition) -> None:
