@@ -34,7 +34,7 @@ class ConvexPartition:
 class CachedPolygon(Polygon):  # type: ignore[misc]
     """Polygon with hashed perimeter."""
 
-    slots = "_hash", "_perimeter"
+    __slots__ = "_hash", "_perimeter"
 
     def __init__(self,
                  border: Contour[Scalar],
