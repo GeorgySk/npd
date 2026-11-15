@@ -9,7 +9,8 @@ from ground.base import get_context
 from hypothesis_geometry import planar
 
 from npd.npd import steiner_points
-from npd.structures import CachedPolygon
+from npd.structures import (CachedPolygon,
+                            to_triangular_map)
 
 from tests.config import (MAX_COORDINATE,
                           MAX_DENOMINATOR,
@@ -75,6 +76,12 @@ def to_polygon_with_triangles(polygon: Polygon[Fraction],
 polygons_with_triangles = st.builds(to_polygon_with_triangles,
                                     varied_polygons,
                                     sparse_deltas)
+triangles = planar.triangular_contours(wide_coordinates).map(CachedPolygon)
+triangles_lists = st.lists(triangles, min_size=1, max_size=4)
+scales = st.floats(1e-3, 1e3)
+triangular_maps = polygons_with_triangles.map(
+    lambda polygon_with_triangles: to_triangular_map(
+        polygon_with_triangles[1]))
 triangles_lists_with_permutations = polygons_with_triangles.flatmap(
     lambda polygon_with_triangles: st.tuples(
         st.just(polygon_with_triangles[1]),

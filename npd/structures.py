@@ -57,35 +57,19 @@ class CachedPolygon(Polygon):  # type: ignore[misc]
         return self._perimeter
 
 
+@dataclass(eq=False, slots=True)
 class Chunk:
-    """Stores collection of triangles with their total area and perimeter."""
+    """
+    Triangles with their total area and the perimeter of their union.
 
-    def __init__(self, *,
-                 triangles: dict[CachedPolygon, None],
-                 area: Fraction,
-                 perimeter: float) -> None:
-        """Creates a chunk of triangles with their precomputed measures."""
-        self.triangles = triangles
-        self.area = area
-        self._perimeter = perimeter
-        if not isinstance(perimeter, float):
-            raise TypeError("Bad perimeter value")
-        self._hash = hash(tuple(triangles))
+    Area and perimeter are cached and updated incrementally as triangles
+    move between chunks. ``eq=False`` keeps identity equality and hashing,
+    so a chunk stays a valid dict key while its triangles change.
+    """
 
-    def __hash__(self) -> int:
-        """Hash fixed at creation, so it stays valid when triangles move."""
-        return self._hash
-
-    @property
-    def perimeter(self) -> float:
-        """Perimeter of the union of triangles."""
-        return self._perimeter
-
-    @perimeter.setter
-    def perimeter(self, value: float) -> None:
-        if not isinstance(value, float):
-            raise TypeError("Got unexpected type")
-        self._perimeter = value
+    triangles: dict[CachedPolygon, None]
+    area: Fraction
+    perimeter: float
 
     def compactness(self) -> float:
         """Compactness of the union of triangles."""
@@ -162,13 +146,9 @@ class Partition:
         source.perimeter += sum(
             fast_length(edge) * (1 if neighbor in source.triangles else -1)
             for edge, neighbor in self.triangular_map[triangle].items())
-        if not isinstance(source.perimeter, float):
-            raise TypeError("Something went wrong when changing perimeter")
         target.perimeter += sum(
             fast_length(edge) * (-1 if neighbor in target.triangles else 1)
             for edge, neighbor in self.triangular_map[triangle].items())
-        if not isinstance(target.perimeter, float):
-            raise TypeError("Something went wrong when changing perimeter")
 
     def chunk_neighbors(self, chunk: Chunk) -> list[Chunk]:
         """
