@@ -34,7 +34,12 @@ def split(partition: Partition,
     :param partition: partition of the polygon, updated in-place
     :param requirement: area of the chunk to split off
     :return: the chunk with the required area and the remainder chunk
+    :raises ValueError: if the requirement isn't positive and less than
+    the partition's total area
     """
+    if not 0 < requirement < partition.total_area:
+        raise ValueError("Requirement must be positive and less than "
+                         "the partition's total area.")
     while not is_satisfactory_chunk_found(partition, requirement=requirement):
         join_pairs(partition)
         min_chunk_size = min(len(chunk.triangles)
@@ -60,7 +65,9 @@ def is_satisfactory_chunk_found(partition: Partition,
                                 *,
                                 requirement: Fraction) -> bool:
     """
-    Checks if any chunk in the partition satisfies the area requirement.
+    Checks if any chunk is large enough to stop joining chunks.
+
+    See ``is_satisfactory_area`` for when a chunk is large enough.
 
     :param partition: input partition
     :param requirement: input area requirement

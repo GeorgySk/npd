@@ -39,7 +39,8 @@ def test_compactness_bounds(triangle: CachedPolygon) -> None:
     assert 0 < to_chunk(triangle).compactness() <= MAX_COMPACTNESS
 
 
-@given(triangles, scales)
+@given(triangle=triangles,
+       scale=scales)
 def test_compactness_scale_invariance(triangle: CachedPolygon,
                                       scale: float) -> None:
     chunk = to_chunk(triangle)

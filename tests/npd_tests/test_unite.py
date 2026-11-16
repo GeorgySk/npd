@@ -59,7 +59,8 @@ def test_triangulation_union(polygon: Polygon[Fraction]) -> None:
     assert unite(triangles) == polygon
 
 
-@given(polygons, sparse_deltas)
+@given(polygon=polygons,
+       delta=sparse_deltas)
 def test_partition_union(polygon: Polygon[Fraction],
                          delta: Fraction) -> None:
     partition = to_partition(polygon, delta=delta)

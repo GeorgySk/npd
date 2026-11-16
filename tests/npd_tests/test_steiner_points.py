@@ -9,7 +9,8 @@ from tests.strategies.base import (deltas,
                                    varied_polygons)
 
 
-@given(varied_polygons, deltas)
+@given(polygon=varied_polygons,
+       delta=deltas)
 def test_points_in_polygon(polygon: Polygon[Fraction],
                            delta: Fraction) -> None:
     result = steiner_points(polygon, delta)
@@ -17,7 +18,8 @@ def test_points_in_polygon(polygon: Polygon[Fraction],
     assert all(point in polygon for point in result)
 
 
-@given(varied_polygons, deltas)
+@given(polygon=varied_polygons,
+       delta=deltas)
 def test_points_distinct(polygon: Polygon[Fraction],
                          delta: Fraction) -> None:
     result = steiner_points(polygon, delta)
@@ -25,7 +27,8 @@ def test_points_distinct(polygon: Polygon[Fraction],
     assert len(set(result)) == len(result)
 
 
-@given(varied_polygons, deltas)
+@given(polygon=varied_polygons,
+       delta=deltas)
 def test_no_polygon_vertices(polygon: Polygon[Fraction],
                              delta: Fraction) -> None:
     vertices = set(chain(polygon.border.vertices,
