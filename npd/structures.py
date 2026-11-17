@@ -244,10 +244,13 @@ class Partition:
                         chunk: Chunk,
                         other: Chunk) -> float:
         """
-        Calculates the perimeter of the union of two neighbor chunks.
+        Calculates the perimeter of the union of two distinct chunks.
 
+        The chunks don't have to be neighbors: without shared edges the
+        perimeters just add up. Passing the same chunk twice gives a
+        wrong result.
         :param chunk: any chunk from the partition
-        :param other: neighbor chunk
+        :param other: any other chunk from the partition
         :return: perimeter of a chunk that could be obtained if the
         chunks were to be united
         """

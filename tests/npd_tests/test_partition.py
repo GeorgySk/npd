@@ -1,4 +1,5 @@
 import math
+from collections.abc import Collection
 from fractions import Fraction
 
 from gon.base import (Polygon,
@@ -125,13 +126,36 @@ def test_chunk_measures(polygon: Polygon[Fraction],
         assert chunk.area == sum((triangle.area
                                   for triangle in chunk.triangles),
                                  Fraction(0))
-        assert math.isclose(chunk.perimeter, border_length(chunk, partition))
+        assert math.isclose(chunk.perimeter,
+                            border_length(chunk.triangles, partition))
 
 
-def border_length(chunk: Chunk,
+@given(polygon=varied_polygons,
+       delta=sparse_deltas,
+       operations=partition_operations)
+def test_union_perimeter(polygon: Polygon[Fraction],
+                         delta: Fraction,
+                         operations: list[tuple[bool, int, int]]) -> None:
+    partition = to_partition(polygon, delta=delta)
+    apply(partition, operations)
+
+    for chunk in partition.chunk_map:
+        for other in partition.chunk_map:
+            if other is chunk:
+                continue
+            result = partition.union_perimeter(chunk, other)
+            assert math.isclose(
+                result,
+                border_length({**chunk.triangles, **other.triangles},
+                              partition))
+            assert math.isclose(result,
+                                partition.union_perimeter(other, chunk))
+
+
+def border_length(triangles: Collection[CachedPolygon],
                   partition: Partition) -> float:
     return sum(math.dist((edge.start.x, edge.start.y),
                          (edge.end.x, edge.end.y))
-               for triangle in chunk.triangles
+               for triangle in triangles
                for edge, neighbor in partition.triangular_map[triangle].items()
-               if neighbor not in chunk.triangles)
+               if neighbor not in triangles)
