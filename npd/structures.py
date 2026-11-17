@@ -220,8 +220,10 @@ class Partition:
         """
         Unites two neighbor chunks into a new one.
 
-        Creates a new chunk out of two given ones, replaces them with
-        the new one, and updates all the relations.
+        The given chunks are removed from the partition and must not be
+        used with it again. The union takes over their neighbors, with
+        the edges shared with a neighbor of both added up. Its triangles
+        are those of ``chunk`` followed by those of ``other``.
         :param chunk: any chunk from the partition
         :param other: neighbor chunk
         :return: newly created chunk as their union

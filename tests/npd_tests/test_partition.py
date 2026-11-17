@@ -79,6 +79,25 @@ def test_chunk_map_consistency(polygon: Polygon[Fraction],
     assert partition.chunk_map == rebuilt_neighbors(partition)
 
 
+@given(polygon=varied_polygons,
+       delta=sparse_deltas,
+       operations=partition_operations)
+def test_chunks_partition_triangles(polygon: Polygon[Fraction],
+                                    delta: Fraction,
+                                    operations: list[tuple[bool, int, int]]
+                                    ) -> None:
+    partition = to_partition(polygon, delta=delta)
+
+    apply(partition, operations)
+
+    owned = [triangle
+             for chunk in partition.chunk_map
+             for triangle in chunk.triangles]
+    assert all(chunk.triangles for chunk in partition.chunk_map)
+    assert len(owned) == len(partition.triangular_map)
+    assert set(owned) == set(partition.triangular_map)
+
+
 def test_unite_merges_common_neighbor_edges() -> None:
     # Three triangles around the centroid, each touching the other two.
     border = Contour([Point(Fraction(0), Fraction(0)),
