@@ -111,49 +111,38 @@ def join_pairs(partition: Partition) -> None:
     """
     Merges the smallest chunks with their neighbors into compact pairs.
 
-    :param partition:
-    :return:
+    Goes through the chunks with the fewest triangles from the least
+    compact one, uniting each with the neighbor that gives the most
+    compact union. A chunk takes part in at most one union, and unions
+    aren't merged further.
+    :param partition: partition to update in place
     """
     smallest_chunk_size = min(len(chunk.triangles)
                               for chunk in partition.chunk_map)
-    potential_sources = dict.fromkeys(
-        chunk for chunk in partition.chunk_map
-        if len(chunk.triangles) == smallest_chunk_size)
-    potential_targets = dict.fromkeys(partition.chunk_map)
-    while potential_sources:
-        merge_least_compact(partition,
-                            potential_sources,
-                            potential_targets)
-
-
-def merge_least_compact(partition: Partition,
-                        potential_sources: dict[Chunk, None],
-                        potential_targets: dict[Chunk, None]) -> None:
-    """
-    Merges the least compact source chunk with its best target neighbor.
-
-    :param partition:
-    :param potential_sources:
-    :param potential_targets:
-    :return:
-    """
-    source = min(potential_sources, key=Chunk.compactness)
-    neighbors = [neighbor for neighbor in partition.chunk_neighbors(source)
-                 if neighbor in potential_targets]
-    if not neighbors:
-        potential_sources.pop(source)
-        return
-    best_target = max(
-        neighbors,
-        key=lambda neighbor: ((source.area + neighbor.area) ** 0.5
-                              / partition.union_perimeter(source, neighbor)))
-    potential_sources.pop(source)
-    potential_sources.pop(best_target, None)
-    potential_targets.pop(source)
-    potential_targets.pop(best_target)
-    if len(source.triangles) > PLOT_STARTING_NUMBER:
-        draw(*partition.chunk_map, source, best_target)
-    partition.unite(source, best_target)
+    # Sorted once: merged chunks are skipped and unions never become
+    # sources, so a source's compactness can't change while waiting.
+    sources = sorted((chunk for chunk in partition.chunk_map
+                      if len(chunk.triangles) == smallest_chunk_size),
+                     key=Chunk.compactness)
+    unmerged = dict.fromkeys(partition.chunk_map)
+    for source in sources:
+        if source not in unmerged:
+            continue
+        neighbors = [neighbor
+                     for neighbor in partition.chunk_neighbors(source)
+                     if neighbor in unmerged]
+        if not neighbors:
+            continue
+        best_target = max(
+            neighbors,
+            key=lambda neighbor: (
+                (source.area + neighbor.area) ** 0.5
+                / partition.union_perimeter(source, neighbor)))
+        del unmerged[source]
+        del unmerged[best_target]
+        if len(source.triangles) > PLOT_STARTING_NUMBER:
+            draw(*partition.chunk_map, source, best_target)
+        partition.unite(source, best_target)
 
 
 def swap_leaves(partition: Partition) -> None:
