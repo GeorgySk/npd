@@ -135,10 +135,26 @@ class Partition:
         """
         Moves the given triangle from the source chunk to the target chunk.
 
+        Also updates the edges the chunks share in the chunk map: each
+        edge of the triangle stops being shared between the source and the
+        chunk on its other side, and starts being shared between the
+        target and that chunk.
         :param triangle: will be moved from one chunk to another
         :param source: chunk that will lose the triangle
         :param target: chunk that will receive the triangle
         """
+        # Any chunk on the other side of the triangle's edges is the
+        # source itself or one of its neighbors (the target among them).
+        candidates = [source, *self.chunk_neighbors(source)]
+        for edge, neighbor in self.triangular_map[triangle].items():
+            if neighbor is None:
+                continue
+            owner = next(chunk for chunk in candidates
+                         if neighbor in chunk.triangles)
+            if owner is not source:
+                self._remove_shared_edge(source, owner, edge)
+            if owner is not target:
+                self._add_shared_edge(target, owner, edge)
         source.triangles.pop(triangle)
         target.triangles.setdefault(triangle)
         source.area -= triangle.area
@@ -247,6 +263,41 @@ class Partition:
         return {chunk_neighbors.get(neighbor, frozenset())
                 | other_neighbors.get(neighbor, frozenset()): neighbor
                 for neighbor in neighbors}
+
+    def _remove_shared_edge(self,
+                            chunk: Chunk,
+                            other: Chunk,
+                            edge: Segment[Fraction]) -> None:
+        shared = self.edge_between_chunks(chunk, other)
+        self._replace_shared_edges(chunk=chunk,
+                                   other=other,
+                                   old=shared,
+                                   new=shared - {edge})
+
+    def _add_shared_edge(self,
+                         chunk: Chunk,
+                         other: Chunk,
+                         edge: Segment[Fraction]) -> None:
+        shared = next((edges
+                       for edges, neighbor in self.chunk_map[chunk].items()
+                       if neighbor is other),
+                      frozenset())
+        self._replace_shared_edges(chunk, other, shared, shared | {edge})
+
+    def _replace_shared_edges(self,
+                              chunk: Chunk,
+                              other: Chunk,
+                              old: frozenset[Segment[Fraction]],
+                              new: frozenset[Segment[Fraction]]) -> None:
+        # Rebuilt in place to keep the neighbors' order; an empty set of
+        # shared edges means the chunks stop being neighbors.
+        for first, second in ((chunk, other), (other, chunk)):
+            neighbors = {(new if edges == old else edges): neighbor
+                         for edges, neighbor in self.chunk_map[first].items()}
+            neighbors.pop(frozenset(), None)
+            if new and new not in neighbors:
+                neighbors[new] = second
+            self.chunk_map[first] = neighbors
 
     def _add_chunk_to_neighbors(self, chunk: Chunk) -> None:
         if chunk not in self.chunk_map:

@@ -80,6 +80,14 @@ triangles = planar.triangular_contours(wide_coordinates).map(CachedPolygon)
 triangles_lists = st.lists(triangles, min_size=1, max_size=4)
 scales = st.floats(1e-3, 1e3)
 positive_fractions = st.fractions(0).filter(bool)
+# Operations on a partition: (is a move rather than a unite, source chunk
+# index for a unite, index of the chosen neighbor or move). Indices are
+# taken modulo the available options.
+MAX_PARTITION_OPERATIONS_COUNT = 10
+partition_operations = st.lists(st.tuples(st.booleans(),
+                                          st.integers(0),
+                                          st.integers(0)),
+                                max_size=MAX_PARTITION_OPERATIONS_COUNT)
 # requirements as fractions of the area that `nonconvex.split` rejects
 invalid_requirement_factors = (st.fractions(max_value=0)
                                | st.fractions(min_value=1))
