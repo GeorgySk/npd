@@ -232,7 +232,7 @@ class Partition:
         union = Chunk(triangles={**chunk.triangles, **other.triangles},
                       area=chunk.area + other.area,
                       perimeter=self.union_perimeter(chunk, other))
-        self.chunk_map[union] = self._union_neighbors(chunk, other)
+        self.chunk_map[union] = self._neighbors_of_union(chunk, other)
         self._add_chunk_to_neighbors(union)
         self._remove_chunk_from_neighbors(chunk)
         self._remove_chunk_from_neighbors(other)
@@ -257,9 +257,9 @@ class Partition:
         shared_length = sum(map(fast_length, self.shared_edges(chunk, other)))
         return chunk.perimeter + other.perimeter - 2 * shared_length
 
-    def _union_neighbors(self,
-                         chunk: Chunk,
-                         other: Chunk) -> SharedEdgesPerNeighbor:
+    def _neighbors_of_union(self,
+                            chunk: Chunk,
+                            other: Chunk) -> SharedEdgesPerNeighbor:
         result = {neighbor: edges
                   for neighbor, edges in self.chunk_map[chunk].items()
                   if neighbor is not other}
