@@ -2,7 +2,9 @@ import math
 from collections.abc import Collection
 from fractions import Fraction
 
-from gon.base import (Polygon,
+from gon.base import (Contour,
+                      Point,
+                      Polygon,
                       Segment)
 from hypothesis import given
 import pytest
@@ -74,6 +76,25 @@ def test_chunk_map_consistency(polygon: Polygon[Fraction],
 
     apply(partition, operations)
 
+    assert partition.chunk_map == rebuilt_neighbors(partition)
+
+
+def test_unite_merges_common_neighbor_edges() -> None:
+    # Three triangles around the centroid, each touching the other two.
+    border = Contour([Point(Fraction(0), Fraction(0)),
+                      Point(Fraction(3), Fraction(0)),
+                      Point(Fraction(0), Fraction(3))])
+    partition = Partition(Polygon(border, []),
+                          extra_points=[Point(Fraction(1), Fraction(1))])
+    first, second, third = partition.chunk_map
+    first_edges = partition.shared_edges(third, first)
+    second_edges = partition.shared_edges(third, second)
+    assert first_edges
+    assert second_edges
+
+    union = partition.unite(first, second)
+
+    assert partition.chunk_map[third] == {union: first_edges | second_edges}
     assert partition.chunk_map == rebuilt_neighbors(partition)
 
 
