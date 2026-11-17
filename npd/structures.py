@@ -4,7 +4,6 @@ from collections.abc import (Collection,
                              Sequence)
 from dataclasses import dataclass
 from fractions import Fraction
-from itertools import chain
 
 from gon.base import (Contour,
                       Point,
@@ -16,7 +15,7 @@ from ground.base import get_context
 
 from npd.utils import fast_length
 
-NeighborChunkPerEdge = dict[frozenset[Segment[Fraction]], "Chunk"]
+SharedEdgesPerNeighbor = dict["Chunk", frozenset[Segment[Fraction]]]
 TriangularMap = dict["CachedPolygon",
                      dict[Segment[Fraction], "CachedPolygon | None"]]
 
@@ -102,7 +101,7 @@ class Partition:
             chunk = stack.pop()
             seen.add(chunk)
             stack.extend(neighbor
-                         for neighbor in self.chunk_map[chunk].values()
+                         for neighbor in self.chunk_map[chunk]
                          if neighbor not in seen)
         return len(self.chunk_map) != len(seen)
 
@@ -173,7 +172,7 @@ class Partition:
         :param chunk: any chunk in the partition
         :return: a list of neighbor chunks
         """
-        return list(self.chunk_map[chunk].values())
+        return list(self.chunk_map[chunk])
 
     def triangle_neighbors(self, triangle: CachedPolygon
                            ) -> list[CachedPolygon]:
@@ -187,19 +186,18 @@ class Partition:
                 for neighbor in self.triangular_map[triangle].values()
                 if neighbor is not None]
 
-    def edge_between_chunks(self,
-                            chunk: Chunk,
-                            other: Chunk
-                            ) -> frozenset[Segment[Fraction]]:
+    def shared_edges(self,
+                     chunk: Chunk,
+                     other: Chunk) -> frozenset[Segment[Fraction]]:
         """
-        Finds the edge shared by two neighbor chunks.
+        Finds the segments shared by two chunks.
 
         :param chunk: chunk in the partition
-        :param other: neighbor chunk
-        :return: edge between the given chunks as a set of segments
+        :param other: chunk in the partition
+        :return: segments on the border between the given chunks, empty
+        if they aren't neighbors
         """
-        return next(edge for edge, neighbor in self.chunk_map[chunk].items()
-                    if neighbor == other)
+        return self.chunk_map[chunk].get(other, frozenset())
 
     def edge_between_triangles(self,
                                triangle: CachedPolygon,
@@ -216,7 +214,9 @@ class Partition:
                     for edge, neighbor in self.triangular_map[triangle].items()
                     if neighbor == other)
 
-    def unite(self, chunk: Chunk, other: Chunk) -> Chunk:
+    def unite(self,
+              chunk: Chunk,
+              other: Chunk) -> Chunk:
         """
         Unites two neighbor chunks into a new one.
 
@@ -225,11 +225,14 @@ class Partition:
         :param chunk: any chunk from the partition
         :param other: neighbor chunk
         :return: newly created chunk as their union
+        :raises ValueError: if the chunks aren't neighbors
         """
+        if other not in self.chunk_map[chunk]:
+            raise ValueError("Only neighbor chunks can be united")
         union = Chunk(triangles={**chunk.triangles, **other.triangles},
                       area=chunk.area + other.area,
                       perimeter=self.union_perimeter(chunk, other))
-        self.chunk_map[union] = self._union_neighbors_per_edge(chunk, other)
+        self.chunk_map[union] = self._union_neighbors(chunk, other)
         self._add_chunk_to_neighbors(union)
         self._remove_chunk_from_neighbors(chunk)
         self._remove_chunk_from_neighbors(other)
@@ -237,7 +240,9 @@ class Partition:
         self.chunk_map.pop(other)
         return union
 
-    def union_perimeter(self, chunk: Chunk, other: Chunk) -> float:
+    def union_perimeter(self,
+                        chunk: Chunk,
+                        other: Chunk) -> float:
         """
         Calculates the perimeter of the union of two neighbor chunks.
 
@@ -246,72 +251,59 @@ class Partition:
         :return: perimeter of a chunk that could be obtained if the
         chunks were to be united
         """
-        edge = self.edge_between_chunks(chunk, other)
-        edge_length = sum(map(fast_length, edge))
-        return chunk.perimeter + other.perimeter - 2 * edge_length
+        shared_length = sum(map(fast_length, self.shared_edges(chunk, other)))
+        return chunk.perimeter + other.perimeter - 2 * shared_length
 
-    def _union_neighbors_per_edge(self,
-                                  chunk: Chunk,
-                                  other: Chunk) -> NeighborChunkPerEdge:
-        chunk_neighbors = {neighbor: edge
-                           for edge, neighbor in self.chunk_map[chunk].items()
-                           if neighbor != other}
-        other_neighbors = {neighbor: edge
-                           for edge, neighbor in self.chunk_map[other].items()
-                           if neighbor != chunk}
-        neighbors = dict.fromkeys(chain(chunk_neighbors, other_neighbors))
-        return {chunk_neighbors.get(neighbor, frozenset())
-                | other_neighbors.get(neighbor, frozenset()): neighbor
-                for neighbor in neighbors}
+    def _union_neighbors(self,
+                         chunk: Chunk,
+                         other: Chunk) -> SharedEdgesPerNeighbor:
+        result = {neighbor: edges
+                  for neighbor, edges in self.chunk_map[chunk].items()
+                  if neighbor is not other}
+        for neighbor, edges in self.chunk_map[other].items():
+            if neighbor is not chunk:
+                result[neighbor] = result.get(neighbor, frozenset()) | edges
+        return result
 
     def _remove_shared_edge(self,
                             chunk: Chunk,
                             other: Chunk,
                             edge: Segment[Fraction]) -> None:
-        shared = self.edge_between_chunks(chunk, other)
-        self._replace_shared_edges(chunk=chunk,
-                                   other=other,
-                                   old=shared,
-                                   new=shared - {edge})
+        self._set_shared_edges(chunk,
+                               other,
+                               self.shared_edges(chunk, other) - {edge})
 
     def _add_shared_edge(self,
                          chunk: Chunk,
                          other: Chunk,
                          edge: Segment[Fraction]) -> None:
-        shared = next((edges
-                       for edges, neighbor in self.chunk_map[chunk].items()
-                       if neighbor is other),
-                      frozenset())
-        self._replace_shared_edges(chunk, other, shared, shared | {edge})
+        self._set_shared_edges(chunk,
+                               other,
+                               self.shared_edges(chunk, other) | {edge})
 
-    def _replace_shared_edges(self,
-                              chunk: Chunk,
-                              other: Chunk,
-                              old: frozenset[Segment[Fraction]],
-                              new: frozenset[Segment[Fraction]]) -> None:
-        # Rebuilt in place to keep the neighbors' order; an empty set of
-        # shared edges means the chunks stop being neighbors.
+    def _set_shared_edges(self,
+                          chunk: Chunk,
+                          other: Chunk,
+                          edges: frozenset[Segment[Fraction]]) -> None:
+        # An empty set of shared edges means the chunks stop being
+        # neighbors.
         for first, second in ((chunk, other), (other, chunk)):
-            neighbors = {(new if edges == old else edges): neighbor
-                         for edges, neighbor in self.chunk_map[first].items()}
-            neighbors.pop(frozenset(), None)
-            if new and new not in neighbors:
-                neighbors[new] = second
-            self.chunk_map[first] = neighbors
+            if edges:
+                self.chunk_map[first][second] = edges
+            else:
+                self.chunk_map[first].pop(second, None)
 
     def _add_chunk_to_neighbors(self, chunk: Chunk) -> None:
         if chunk not in self.chunk_map:
-            raise KeyError("Neighbors-per-edge mapping of the given chunk "
+            raise KeyError("Shared edges per neighbor of the given chunk "
                            "must be added to chunk map before trying to add "
                            "the chunk in its neighbors mappings")
-        for edge, neighbor in self.chunk_map[chunk].items():
-            self.chunk_map[neighbor][edge] = chunk
+        for neighbor, edges in self.chunk_map[chunk].items():
+            self.chunk_map[neighbor][chunk] = edges
 
     def _remove_chunk_from_neighbors(self, chunk: Chunk) -> None:
-        for neighbor in self.chunk_neighbors(chunk):
-            self.chunk_map[neighbor] = {
-                edge: node for edge, node in self.chunk_map[neighbor].items()
-                if node != chunk}
+        for neighbor in self.chunk_map[chunk]:
+            del self.chunk_map[neighbor][chunk]
 
     def is_touching_other_chunk(self,
                                 triangle: CachedPolygon,
@@ -372,19 +364,20 @@ def to_triangular_map(triangles: list[CachedPolygon]) -> TriangularMap:
     return triangular_map
 
 
-def to_chunk_map(triangular_map: TriangularMap) -> dict[Chunk,
-                                                        NeighborChunkPerEdge]:
+def to_chunk_map(triangular_map: TriangularMap
+                 ) -> dict[Chunk, SharedEdgesPerNeighbor]:
     """
     Converts a triangular map to a chunk map.
 
     :param triangular_map: input triangular map
     :return: same triangular map but where triangles are wrapped as
-    chunks and segments wrapped as sets of single segment
+    chunks, mapping each neighbor chunk to the set holding the single
+    segment shared with it
     """
     chunk_per_triangle = {triangle: to_chunk(triangle)
                           for triangle in triangular_map}
     return {chunk_per_triangle[triangle]:
-            {frozenset([edge]): chunk_per_triangle[neighbor]
+            {chunk_per_triangle[neighbor]: frozenset([edge])
              for edge, neighbor in neighbors_map.items()
              if neighbor is not None}
             for triangle, neighbors_map in triangular_map.items()}

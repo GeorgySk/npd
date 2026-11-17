@@ -1,8 +1,10 @@
+import math
 from fractions import Fraction
 
 from gon.base import (Polygon,
                       Segment)
 from hypothesis import given
+import pytest
 
 from npd.npd import to_partition
 from npd.structures import (CachedPolygon,
@@ -71,8 +73,65 @@ def test_chunk_map_consistency(polygon: Polygon[Fraction],
 
     apply(partition, operations)
 
-    stored = {chunk: {neighbor: edges for edges, neighbor in neighbors.items()}
-              for chunk, neighbors in partition.chunk_map.items()}
-    assert all(len(stored[chunk]) == len(neighbors)
-               for chunk, neighbors in partition.chunk_map.items())
-    assert stored == rebuilt_neighbors(partition)
+    assert partition.chunk_map == rebuilt_neighbors(partition)
+
+
+@given(polygon=varied_polygons,
+       delta=sparse_deltas,
+       operations=partition_operations)
+def test_shared_edges(polygon: Polygon[Fraction],
+                      delta: Fraction,
+                      operations: list[tuple[bool, int, int]]) -> None:
+    partition = to_partition(polygon, delta=delta)
+    apply(partition, operations)
+
+    expected = rebuilt_neighbors(partition)
+    assert all(partition.shared_edges(chunk, other)
+               == expected[chunk].get(other, frozenset())
+               for chunk in partition.chunk_map
+               for other in partition.chunk_map)
+
+
+@given(polygon=varied_polygons,
+       delta=sparse_deltas,
+       operations=partition_operations)
+def test_unite_rejects_non_neighbors(polygon: Polygon[Fraction],
+                                     delta: Fraction,
+                                     operations: list[tuple[bool, int, int]]
+                                     ) -> None:
+    partition = to_partition(polygon, delta=delta)
+    apply(partition, operations)
+    chunk_map = {chunk: dict(neighbors)
+                 for chunk, neighbors in partition.chunk_map.items()}
+
+    for chunk in chunk_map:
+        for other in chunk_map:
+            if other not in partition.chunk_neighbors(chunk):
+                with pytest.raises(ValueError, match="neighbor"):
+                    partition.unite(chunk, other)
+    assert partition.chunk_map == chunk_map
+
+
+@given(polygon=varied_polygons,
+       delta=sparse_deltas,
+       operations=partition_operations)
+def test_chunk_measures(polygon: Polygon[Fraction],
+                        delta: Fraction,
+                        operations: list[tuple[bool, int, int]]) -> None:
+    partition = to_partition(polygon, delta=delta)
+    apply(partition, operations)
+
+    for chunk in partition.chunk_map:
+        assert chunk.area == sum((triangle.area
+                                  for triangle in chunk.triangles),
+                                 Fraction(0))
+        assert math.isclose(chunk.perimeter, border_length(chunk, partition))
+
+
+def border_length(chunk: Chunk,
+                  partition: Partition) -> float:
+    return sum(math.dist((edge.start.x, edge.start.y),
+                         (edge.end.x, edge.end.y))
+               for triangle in chunk.triangles
+               for edge, neighbor in partition.triangular_map[triangle].items()
+               if neighbor not in chunk.triangles)

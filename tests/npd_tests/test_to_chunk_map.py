@@ -41,19 +41,19 @@ def test_neighbors_match_triangular_map(triangular_map: TriangularMap
     result = to_chunk_map(triangular_map)
 
     for chunk, neighbors in result.items():
-        expected = {frozenset([edge]): neighbor
+        expected = {neighbor: frozenset([edge])
                     for edge, neighbor
                     in triangular_map[to_triangle(chunk)].items()
                     if neighbor is not None}
-        assert {edges: to_triangle(neighbor)
-                for edges, neighbor in neighbors.items()} == expected
+        assert {to_triangle(neighbor): edges
+                for neighbor, edges in neighbors.items()} == expected
 
 
 @given(triangular_maps)
 def test_neighbors_are_keys(triangular_map: TriangularMap) -> None:
     result = to_chunk_map(triangular_map)
 
-    assert all(neighbor in result and result[neighbor][edges] is chunk
+    assert all(neighbor in result and result[neighbor][chunk] == edges
                for chunk, neighbors in result.items()
-               for edges, neighbor in neighbors.items())
+               for neighbor, edges in neighbors.items())
 
