@@ -3,7 +3,8 @@ from math import floor
 
 from hypothesis import strategies as st
 from hypothesis.strategies import SearchStrategy
-from gon.base import (Polygon,
+from gon.base import (Contour,
+                      Polygon,
                       Triangulation)
 from ground.base import get_context
 from hypothesis_geometry import planar
@@ -98,6 +99,28 @@ triangles_lists_with_permutations = polygons_with_triangles.flatmap(
     lambda polygon_with_triangles: st.tuples(
         st.just(polygon_with_triangles[1]),
         st.permutations(polygon_with_triangles[1])))
+# Fine-grained coordinates with signs, so lengths need rounding.
+length_coordinates = st.fractions(-100, 100, max_denominator=1000)
+length_segments = planar.segments(length_coordinates)
+length_contours = planar.contours(length_coordinates)
+
+
+def to_reoriented(contour: Contour[Fraction],
+                  start: int,
+                  reverse: bool) -> Contour[Fraction]:
+    """Same contour starting at another vertex, maybe traversed backwards."""
+    vertices = contour.vertices[start:] + contour.vertices[:start]
+    return Contour(vertices[::-1] if reverse else vertices)
+
+
+contours_with_reoriented = length_contours.flatmap(
+    lambda contour: st.tuples(
+        st.just(contour),
+        st.builds(to_reoriented,
+                  st.just(contour),
+                  st.integers(0, len(contour.vertices) - 1),
+                  st.booleans())))
+multisegments = planar.multisegments(length_coordinates)
 polygons_lists = st.lists(polygons,
                           min_size=1,
                           max_size=MAX_POLYGONS_LIST_SIZE)

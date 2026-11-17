@@ -11,7 +11,6 @@ from typing import TypeVar
 from gon.base import (EMPTY,
                       Contour,
                       Empty,
-                      Linear,
                       Multipolygon,
                       Orientation,
                       Point,
@@ -21,26 +20,35 @@ from gon.base import (EMPTY,
 T = TypeVar("T")
 
 
-def fast_length(geometry: Linear[Fraction]) -> float:
+def fast_length(geometry: Segment[Fraction] | Contour[Fraction]) -> float:
     """
     Calculates the length of a segment or a contour using floats.
 
-    :param geometry:
-    :return:
+    gon's ``length`` is exact but symbolic, so slower and, for contours,
+    not convertible to float.
+    :param geometry: segment or contour to measure
+    :return: approximate length
+    :raises TypeError: for any other geometry
     """
     if isinstance(geometry, Segment):
-        start = geometry.start
-        end = geometry.end
-        return math.sqrt((start.x - end.x) ** 2 + (start.y - end.y) ** 2)
+        return distance(geometry.start, geometry.end)
     if isinstance(geometry, Contour):
-        result = 0.0
-        for segment in geometry.segments:
-            start = segment.start
-            end = segment.end
-            result += math.sqrt((start.x - end.x) ** 2
-                                + (start.y - end.y) ** 2)
-        return result
+        vertices = geometry.vertices
+        return sum(map(distance, vertices, (*vertices[1:], vertices[0])))
     raise TypeError(f"Cannot calculate length of type {type(geometry)}")
+
+
+def distance(start: Point[Fraction], end: Point[Fraction]) -> float:
+    """
+    Calculates the distance between two points using floats.
+
+    The differences are exact; only ``math.hypot`` rounds them, which
+    keeps it fast for coordinates with many digits.
+    :param start: one point
+    :param end: another point
+    :return: approximate distance
+    """
+    return math.hypot(start.x - end.x, start.y - end.y)
 
 
 def to_segments(vertices: list[Point[Fraction]]

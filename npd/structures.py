@@ -393,4 +393,4 @@ def to_chunk(triangle: CachedPolygon) -> Chunk:
     """
     return Chunk(triangles={triangle: None},
                  area=triangle.area,
-                 perimeter=fast_length(triangle.border))
+                 perimeter=triangle.perimeter)
