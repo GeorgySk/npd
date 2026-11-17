@@ -233,9 +233,13 @@ class Partition:
                       area=chunk.area + other.area,
                       perimeter=self.union_perimeter(chunk, other))
         self.chunk_map[union] = self._neighbors_of_union(chunk, other)
-        self._add_chunk_to_neighbors(union)
-        self._remove_chunk_from_neighbors(chunk)
-        self._remove_chunk_from_neighbors(other)
+        # Outside each other, the united chunks only appear in the
+        # entries of the union's neighbors.
+        for neighbor, edges in self.chunk_map[union].items():
+            neighbors = self.chunk_map[neighbor]
+            neighbors.pop(chunk, None)
+            neighbors.pop(other, None)
+            neighbors[union] = edges
         self.chunk_map.pop(chunk)
         self.chunk_map.pop(other)
         return union
@@ -296,17 +300,6 @@ class Partition:
             else:
                 self.chunk_map[first].pop(second, None)
 
-    def _add_chunk_to_neighbors(self, chunk: Chunk) -> None:
-        if chunk not in self.chunk_map:
-            raise KeyError("Shared edges per neighbor of the given chunk "
-                           "must be added to chunk map before trying to add "
-                           "the chunk in its neighbors mappings")
-        for neighbor, edges in self.chunk_map[chunk].items():
-            self.chunk_map[neighbor][chunk] = edges
-
-    def _remove_chunk_from_neighbors(self, chunk: Chunk) -> None:
-        for neighbor in self.chunk_map[chunk]:
-            del self.chunk_map[neighbor][chunk]
 
     def is_touching_other_chunk(self,
                                 triangle: CachedPolygon,
