@@ -114,6 +114,9 @@ inner_fractions = st.fractions(0, 1, max_denominator=10).filter(
 triangle_cuts = st.tuples(st.integers(0),
                           st.integers(0, 2),
                           inner_fractions)
+# (index of the refinement setup, taken modulo the count, position of
+# the requirement within the range the node's area allows)
+refinements = st.tuples(st.integers(0), inner_fractions)
 # requirements as fractions of the area above which `nonconvex.split` can
 # join down to two chunks, neither of them satisfactory
 high_requirement_factors = st.fractions(Fraction(3, 4), Fraction(1),
