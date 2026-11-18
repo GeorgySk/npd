@@ -149,22 +149,28 @@ def swap_leaves(partition: Partition) -> None:
     """
     Moves leaf triangles to the neighbor chunks surrounding them.
 
-    Locates leaf triangles in chunks and moves them to the neighbor
-    chunk if this triangle is surrounded by two triangles from that
-    chunk
+    A leaf is a triangle with no edge on the polygon's border, one
+    neighbor in its own chunk and the other two in a single other chunk.
+    Moving it there keeps its chunk non-empty and connected, and
+    shortens the perimeters of both chunks: the edge to its own chunk is
+    shorter than the two edges to the other one. Triangles on the
+    polygon's border are never moved: the target's perimeter would grow.
+    At most one leaf, the first found, is moved out of each chunk per
+    call. Chunks are visited in the order of the chunk map, each seeing
+    the moves made before it.
     :param partition: input partition that will be updated in-place
     """
     for chunk in partition.chunk_map:
         for triangle in chunk.triangles:
-            triangle_neighbors = list(partition.triangle_neighbors(triangle))
+            triangle_neighbors = partition.triangle_neighbors(triangle)
             if len(triangle_neighbors) != TRIANGLE_SIDES_COUNT:
                 continue
-            if sum(neighbor in chunk.triangles
-                   for neighbor in triangle_neighbors) != 1:
+            outside_neighbors = [neighbor
+                                 for neighbor in triangle_neighbors
+                                 if neighbor not in chunk.triangles]
+            if len(outside_neighbors) != TRIANGLE_SIDES_COUNT - 1:
                 continue
-            first_neighbor, second_neighbor = (
-                neighbor for neighbor in triangle_neighbors
-                if neighbor not in chunk.triangles)
+            first_neighbor, second_neighbor = outside_neighbors
             chunk_neighbors = partition.chunk_neighbors(chunk)
             first_neighbor_chunk = next(
                 chunk_neighbor for chunk_neighbor in chunk_neighbors
@@ -172,7 +178,7 @@ def swap_leaves(partition: Partition) -> None:
             second_neighbor_chunk = next(
                 chunk_neighbor for chunk_neighbor in chunk_neighbors
                 if second_neighbor in chunk_neighbor.triangles)
-            if first_neighbor_chunk != second_neighbor_chunk:
+            if first_neighbor_chunk is not second_neighbor_chunk:
                 continue
             # safe to mutate `chunk.triangles`: we stop iterating right after
             partition.move(triangle,

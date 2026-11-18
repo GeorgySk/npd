@@ -16,26 +16,8 @@ from npd.structures import (CachedPolygon,
 from tests.strategies.base import (partition_operations,
                                    sparse_deltas,
                                    varied_polygons)
-from tests.utils import apply
-
-
-def rebuilt_neighbors(partition: Partition
-                      ) -> dict[Chunk, dict[Chunk,
-                                            frozenset[Segment[Fraction]]]]:
-    owners: dict[CachedPolygon, Chunk] = {
-        triangle: chunk
-        for chunk in partition.chunk_map
-        for triangle in chunk.triangles}
-    result: dict[Chunk, dict[Chunk, set[Segment[Fraction]]]] = {
-        chunk: {} for chunk in partition.chunk_map}
-    for triangle, neighbors in partition.triangular_map.items():
-        chunk = owners[triangle]
-        for edge, neighbor in neighbors.items():
-            if neighbor is not None and owners[neighbor] is not chunk:
-                result[chunk].setdefault(owners[neighbor], set()).add(edge)
-    return {chunk: {neighbor: frozenset(edges)
-                    for neighbor, edges in neighbors_edges.items()}
-            for chunk, neighbors_edges in result.items()}
+from tests.utils import (apply,
+                         rebuilt_neighbors)
 
 
 @given(polygon=varied_polygons,
