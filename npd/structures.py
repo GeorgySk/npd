@@ -141,15 +141,37 @@ class Partition:
         :param triangle: will be moved from one chunk to another
         :param source: chunk that will lose the triangle
         :param target: chunk that will receive the triangle
+        :raises ValueError: if the triangle isn't in the source or the
+        source is the target; the partition is left unchanged
         """
+        if triangle not in source.triangles:
+            raise ValueError("The triangle must belong to the source chunk")
+        if source is target:
+            raise ValueError("Source and target must be distinct chunks")
         # Any chunk on the other side of the triangle's edges is the
         # source itself or one of its neighbors (the target among them).
         candidates = [source, *self.chunk_neighbors(source)]
+        # Accumulated separately, then added once, so the cached
+        # perimeters round the same way as summing all edges at once.
+        source_perimeter_change = 0.
+        target_perimeter_change = 0.
         for edge, neighbor in self.triangular_map[triangle].items():
-            if neighbor is None:
+            length = fast_length(edge)
+            owner = (None
+                     if neighbor is None
+                     else next(chunk for chunk in candidates
+                               if neighbor in chunk.triangles))
+            # The edge becomes border of the source if the triangle on
+            # its other side stays there, and stops being border
+            # otherwise; the other way around for the target.
+            source_perimeter_change += (length
+                                        if owner is source
+                                        else -length)
+            target_perimeter_change += (-length
+                                        if owner is target
+                                        else length)
+            if owner is None:
                 continue
-            owner = next(chunk for chunk in candidates
-                         if neighbor in chunk.triangles)
             if owner is not source:
                 self._remove_shared_edge(source, owner, edge)
             if owner is not target:
@@ -158,12 +180,8 @@ class Partition:
         target.triangles.setdefault(triangle)
         source.area -= triangle.area
         target.area += triangle.area
-        source.perimeter += sum(
-            fast_length(edge) * (1 if neighbor in source.triangles else -1)
-            for edge, neighbor in self.triangular_map[triangle].items())
-        target.perimeter += sum(
-            fast_length(edge) * (-1 if neighbor in target.triangles else 1)
-            for edge, neighbor in self.triangular_map[triangle].items())
+        source.perimeter += source_perimeter_change
+        target.perimeter += target_perimeter_change
 
     def chunk_neighbors(self, chunk: Chunk) -> list[Chunk]:
         """

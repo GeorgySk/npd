@@ -126,6 +126,58 @@ def test_unite_rejects_non_neighbors(polygon: Polygon[Fraction],
     assert partition.chunk_map == chunk_map
 
 
+def snapshot(partition: Partition) -> list[tuple[Chunk,
+                                                 dict[Chunk, frozenset[
+                                                     Segment[Fraction]]],
+                                                 list[CachedPolygon],
+                                                 Fraction,
+                                                 float]]:
+    return [(chunk,
+             dict(neighbors),
+             list(chunk.triangles),
+             chunk.area,
+             chunk.perimeter)
+            for chunk, neighbors in partition.chunk_map.items()]
+
+
+@given(polygon=varied_polygons,
+       delta=sparse_deltas,
+       operations=partition_operations)
+def test_move_rejects_foreign_triangle(polygon: Polygon[Fraction],
+                                       delta: Fraction,
+                                       operations: list[tuple[bool, int, int]]
+                                       ) -> None:
+    partition = to_partition(polygon, delta=delta)
+    apply(partition, operations)
+    before = snapshot(partition)
+
+    for owner in list(partition.chunk_map):
+        for triangle in list(owner.triangles):
+            for chunk in list(partition.chunk_map):
+                if chunk is not owner:
+                    with pytest.raises(ValueError, match="source"):
+                        partition.move(triangle, source=chunk, target=owner)
+    assert snapshot(partition) == before
+
+
+@given(polygon=varied_polygons,
+       delta=sparse_deltas,
+       operations=partition_operations)
+def test_move_rejects_same_chunk(polygon: Polygon[Fraction],
+                                 delta: Fraction,
+                                 operations: list[tuple[bool, int, int]]
+                                 ) -> None:
+    partition = to_partition(polygon, delta=delta)
+    apply(partition, operations)
+    before = snapshot(partition)
+
+    for chunk in list(partition.chunk_map):
+        for triangle in list(chunk.triangles):
+            with pytest.raises(ValueError, match="distinct"):
+                partition.move(triangle, source=chunk, target=chunk)
+    assert snapshot(partition) == before
+
+
 @given(polygon=varied_polygons,
        delta=sparse_deltas,
        operations=partition_operations)
