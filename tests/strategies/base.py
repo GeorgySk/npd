@@ -89,6 +89,15 @@ partition_operations = st.lists(st.tuples(st.booleans(),
                                           st.integers(0),
                                           st.integers(0)),
                                 max_size=MAX_PARTITION_OPERATIONS_COUNT)
+# positions strictly inside a segment, as fractions of its length
+inner_fractions = st.fractions(0, 1, max_denominator=10).filter(
+    lambda fraction: 0 < fraction < 1)
+# cuts of a triangle: (index of the triangle, taken modulo the count,
+# index of the pivot vertex, position of the new vertex on the edge
+# opposite the pivot)
+triangle_cuts = st.tuples(st.integers(0),
+                          st.integers(0, 2),
+                          inner_fractions)
 # requirements as fractions of the area above which `nonconvex.split` can
 # join down to two chunks, neither of them satisfactory
 high_requirement_factors = st.fractions(Fraction(3, 4), Fraction(1),

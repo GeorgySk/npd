@@ -8,7 +8,8 @@ from hypothesis import given
 
 from npd import nonconvex
 from npd.npd import to_partition
-from tests.utils import is_connected
+from tests.utils import (is_connected,
+                         rebuilt_neighbors)
 from tests.strategies.base import (high_requirement_factors,
                                    invalid_requirement_factors,
                                    polygons,
@@ -79,3 +80,16 @@ def test_l_shape() -> None:
         partition.triangular_map)
     assert is_connected(partition, chunk.triangles)
     assert is_connected(partition, remainder.triangles)
+
+
+def test_l_shape_keeps_chunk_map() -> None:
+    # The final cut also cuts a triangle of the remainder, splitting an
+    # edge the chunks share.
+    l_shape = Polygon(Contour([Point(Fraction(x), Fraction(y))
+                               for x, y in [(0, 0), (2, 0), (2, 1),
+                                            (1, 1), (1, 2), (0, 2)]]), [])
+    partition = to_partition(l_shape, delta=Fraction(1, 4))
+
+    nonconvex.split(partition, requirement=Fraction(7, 10))
+
+    assert partition.chunk_map == rebuilt_neighbors(partition)

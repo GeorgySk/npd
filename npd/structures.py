@@ -330,13 +330,32 @@ class Partition:
                 result[neighbor] = result.get(neighbor, frozenset()) | edges
         return result
 
+    def split_shared_edge(self,
+                          chunk: Chunk,
+                          other: Chunk,
+                          edge: Segment[Fraction],
+                          parts: Collection[Segment[Fraction]]) -> None:
+        """
+        Replaces an edge two chunks share by the parts it was cut into.
+
+        :param chunk: chunk sharing the edge
+        :param other: other chunk sharing the edge
+        :param edge: edge shared by the chunks
+        :param parts: segments the edge was cut into
+        :raises ValueError: if the chunks don't share the edge
+        """
+        self._remove_shared_edge(chunk, other, edge)
+        for part in parts:
+            self._add_shared_edge(chunk, other, part)
+
     def _remove_shared_edge(self,
                             chunk: Chunk,
                             other: Chunk,
                             edge: Segment[Fraction]) -> None:
-        self._set_shared_edges(chunk,
-                               other,
-                               self.shared_edges(chunk, other) - {edge})
+        edges = self.shared_edges(chunk, other)
+        if edge not in edges:
+            raise ValueError("The chunks don't share the edge")
+        self._set_shared_edges(chunk, other, edges - {edge})
 
     def _add_shared_edge(self,
                          chunk: Chunk,

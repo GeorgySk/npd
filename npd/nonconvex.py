@@ -379,8 +379,7 @@ def divide_border_edge_triangle(chunk: Chunk,
            node=leaf,
            pivot_index=pivot_index,
            new_vertex=edge.centroid,
-           chunk=chunk,
-           neighbor=neighbor)
+           chunk=chunk)
 
 
 def border_edge_triangle(chunk: Chunk,
@@ -464,23 +463,33 @@ def edge_neighbor(triangle: CachedPolygon,
     raise ValueError("Couldn't find edge neighbor.")
 
 
-def divide(partition: Partition,  # noqa: PLR0917, PLR0913
+def divide(partition: Partition,
+           *,
            node: CachedPolygon,
            pivot_index: int,
-           new_vertex: Point,
-           chunk: Chunk,
-           neighbor: Chunk) -> tuple[CachedPolygon, CachedPolygon]:
+           new_vertex: Point[Fraction],
+           chunk: Chunk) -> tuple[CachedPolygon, CachedPolygon]:
     """
-    Splits the node by a segment from its pivot vertex to the new vertex.
+    Cuts the node by a segment from its pivot vertex to the new vertex.
 
-    :param partition:
-    :param node:
-    :param pivot_index:
-    :param new_vertex:
-    :param chunk:
-    :param neighbor:
-    :return:
+    The new vertex must lie strictly inside the node's edge opposite the
+    pivot. The triangle across that edge, if any, is cut at the new
+    vertex too, so that no vertex lies inside an edge. Updates the
+    triangular map, the chunks' triangles and the edges chunks share.
+    Areas don't change; neither do the cached perimeters, though cutting
+    an edge on the polygon's border can change their rounding.
+    :param partition: partition to update in place
+    :param node: triangle of the chunk to cut
+    :param pivot_index: index of the pivot among the node's vertices
+    :param new_vertex: point strictly inside the edge opposite the pivot
+    :param chunk: chunk the node belongs to
+    :return: the part with the vertex before the pivot and the part with
+    the vertex after it
+    :raises ValueError: if the node doesn't belong to the chunk
     """
+    if node not in chunk.triangles:
+        raise ValueError("The node must belong to the chunk")
+    triangular_map = partition.triangular_map
     vertices = node.border.vertices
     pivot_vertex = vertices[pivot_index]
     left_vertex = vertices[pivot_index - 1]
@@ -488,82 +497,69 @@ def divide(partition: Partition,  # noqa: PLR0917, PLR0913
     left_segment = Segment(pivot_vertex, left_vertex)
     right_segment = Segment(right_vertex, pivot_vertex)
     third_segment = Segment(left_vertex, right_vertex)
+    left_third_segment = Segment(left_vertex, new_vertex)
+    right_third_segment = Segment(right_vertex, new_vertex)
+    cut = Segment(pivot_vertex, new_vertex)
     left_part = CachedPolygon(Contour([pivot_vertex, left_vertex, new_vertex]))
     right_part = CachedPolygon(Contour([right_vertex, pivot_vertex,
                                         new_vertex]))
-    left_neighbor = partition.triangular_map[node][left_segment]
-    right_neighbor = partition.triangular_map[node][right_segment]
-    third_neighbor = partition.triangular_map[node][third_segment]
-    partition.triangular_map[left_part] = {Segment(pivot_vertex, new_vertex):
-                                           right_part}
-    partition.triangular_map[right_part] = {Segment(pivot_vertex, new_vertex):
-                                            left_part}
-    partition.triangular_map[left_part][left_segment] = left_neighbor
-    if left_neighbor is not None:
-        partition.triangular_map[left_neighbor][left_segment] = left_part
-    partition.triangular_map[right_part][right_segment] = right_neighbor
-    if right_neighbor is not None:
-        partition.triangular_map[right_neighbor][right_segment] = right_part
-    if third_neighbor is not None:
-        third_neighbor_only_vertex = next(
-            vertex for vertex in third_neighbor.border.vertices
-            if vertex not in {left_vertex, right_vertex})
-        third_neighbor_left_part = CachedPolygon(
-            Contour([new_vertex, left_vertex, third_neighbor_only_vertex]))
-        third_neighbor_right_part = CachedPolygon(
-            Contour([right_vertex, new_vertex, third_neighbor_only_vertex]))
-        partition.triangular_map[third_neighbor_left_part] = {
-            Segment(new_vertex, third_neighbor_only_vertex):
-                third_neighbor_right_part}
-        partition.triangular_map[third_neighbor_right_part] = {
-            Segment(new_vertex, third_neighbor_only_vertex):
-                third_neighbor_left_part}
-        partition.triangular_map[left_part][
-            Segment(left_vertex, new_vertex)] = third_neighbor_left_part
-        partition.triangular_map[third_neighbor_left_part][
-            Segment(left_vertex, new_vertex)] = left_part
-        partition.triangular_map[right_part][
-            Segment(right_vertex, new_vertex)] = third_neighbor_right_part
-        partition.triangular_map[third_neighbor_right_part][
-            Segment(right_vertex, new_vertex)] = right_part
-        third_neighbor_left_segment = Segment(left_vertex,
-                                              third_neighbor_only_vertex)
-        third_neighbor_right_segment = Segment(right_vertex,
-                                               third_neighbor_only_vertex)
-        third_neighbor_left_neighbor = next(
-            (neighbor for neighbor in partition.triangle_neighbors(
-                third_neighbor)
-             if partition.edge_between_triangles(third_neighbor, neighbor)
-             == third_neighbor_left_segment), None)
-        third_neighbor_right_neighbor = next(
-            (neighbor for neighbor in partition.triangle_neighbors(
-                third_neighbor)
-             if partition.edge_between_triangles(third_neighbor, neighbor)
-             == third_neighbor_right_segment), None)
-        partition.triangular_map[third_neighbor_left_part][
-            third_neighbor_left_segment] = third_neighbor_left_neighbor
-        if third_neighbor_left_neighbor is not None:
-            partition.triangular_map[third_neighbor_left_neighbor][
-                third_neighbor_left_segment] = third_neighbor_left_part
-        partition.triangular_map[third_neighbor_right_part][
-            third_neighbor_right_segment] = third_neighbor_right_neighbor
-        if third_neighbor_right_neighbor is not None:
-            partition.triangular_map[third_neighbor_right_neighbor][
-                third_neighbor_right_segment] = third_neighbor_right_part
-        partition.triangular_map.pop(third_neighbor)
-        chunk_with_third_neighbor = next(chunk_ for chunk_ in (chunk, neighbor)
-                                         if third_neighbor in chunk_.triangles)
-        chunk_with_third_neighbor.triangles.pop(third_neighbor)
-        chunk_with_third_neighbor.triangles.setdefault(
-            third_neighbor_left_part)
-        chunk_with_third_neighbor.triangles.setdefault(
-            third_neighbor_right_part)
-
-    partition.triangular_map.pop(node)
+    node_neighbors = triangular_map.pop(node)
+    triangular_map[left_part] = {cut: right_part}
+    triangular_map[right_part] = {cut: left_part}
+    _link(partition, left_part, node_neighbors[left_segment], left_segment)
+    _link(partition, right_part, node_neighbors[right_segment],
+          right_segment)
+    third_neighbor = node_neighbors[third_segment]
+    if third_neighbor is None:
+        triangular_map[left_part][left_third_segment] = None
+        triangular_map[right_part][right_third_segment] = None
+    else:
+        only_vertex = next(vertex
+                           for vertex in third_neighbor.border.vertices
+                           if vertex not in {left_vertex, right_vertex})
+        third_cut = Segment(new_vertex, only_vertex)
+        third_left_segment = Segment(left_vertex, only_vertex)
+        third_right_segment = Segment(right_vertex, only_vertex)
+        third_left_part = CachedPolygon(
+            Contour([new_vertex, left_vertex, only_vertex]))
+        third_right_part = CachedPolygon(
+            Contour([right_vertex, new_vertex, only_vertex]))
+        third_neighbor_neighbors = triangular_map.pop(third_neighbor)
+        triangular_map[third_left_part] = {third_cut: third_right_part}
+        triangular_map[third_right_part] = {third_cut: third_left_part}
+        _link(partition, left_part, third_left_part, left_third_segment)
+        _link(partition, right_part, third_right_part, right_third_segment)
+        _link(partition, third_left_part,
+              third_neighbor_neighbors[third_left_segment],
+              third_left_segment)
+        _link(partition, third_right_part,
+              third_neighbor_neighbors[third_right_segment],
+              third_right_segment)
+        owner = next(chunk_ for chunk_ in partition.chunk_map
+                     if third_neighbor in chunk_.triangles)
+        owner.triangles.pop(third_neighbor)
+        owner.triangles.setdefault(third_left_part)
+        owner.triangles.setdefault(third_right_part)
+        if owner is not chunk:
+            partition.split_shared_edge(chunk,
+                                        owner,
+                                        third_segment,
+                                        [left_third_segment,
+                                         right_third_segment])
     chunk.triangles.pop(node)
     chunk.triangles.setdefault(left_part)
     chunk.triangles.setdefault(right_part)
     return left_part, right_part
+
+
+def _link(partition: Partition,
+          triangle: CachedPolygon,
+          other: CachedPolygon | None,
+          edge: Segment[Fraction]) -> None:
+    """Records what lies across the edge, on both sides if needed."""
+    partition.triangular_map[triangle][edge] = other
+    if other is not None:
+        partition.triangular_map[other][edge] = triangle
 
 
 def final_node_refinement(node_to_split: CachedPolygon,
@@ -598,8 +594,7 @@ def final_node_refinement(node_to_split: CachedPolygon,
                       node=node_to_split,
                       pivot_index=pivot_index,
                       new_vertex=new_vertex,
-                      chunk=chunk,
-                      neighbor=neighbor)
+                      chunk=chunk)
     partition.move(right,
                    source=chunk,
                    target=neighbor)
