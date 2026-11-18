@@ -93,3 +93,21 @@ def test_l_shape_keeps_chunk_map() -> None:
     nonconvex.split(partition, requirement=Fraction(7, 10))
 
     assert partition.chunk_map == rebuilt_neighbors(partition)
+
+
+def test_pentagon_needing_triangle_split() -> None:
+    # `add_triangles` runs out of movable triangles and has to split one,
+    # but `edge_neighbor` used to find no neighbor to split it with.
+    pentagon = Polygon(Contour([Point(Fraction(x), Fraction(y))
+                                for x, y in [(0, 0), (2, 1), (3, 4),
+                                             (1, 4), (Fraction(3, 2), 1)]]),
+                       [])
+    partition = to_partition(pentagon, delta=Fraction(52, 59))
+    requirement = Fraction(7, 2)
+
+    chunk, remainder = nonconvex.split(partition, requirement=requirement)
+
+    assert chunk.area == requirement
+    assert remainder.area == pentagon.area - requirement
+    assert is_connected(partition, chunk.triangles)
+    assert is_connected(partition, remainder.triangles)

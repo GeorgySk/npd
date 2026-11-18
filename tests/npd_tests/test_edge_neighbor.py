@@ -38,7 +38,7 @@ def meets_condition(candidate: CachedPolygon,
 @given(polygon=varied_polygons,
        delta=sparse_deltas,
        operations=partition_operations)
-def test_returns_first_qualifying_neighbor(polygon: Polygon[Fraction],
+def test_prefers_first_qualifying_neighbor(polygon: Polygon[Fraction],
                                            delta: Fraction,
                                            operations: list[tuple[bool,
                                                                   int,
@@ -51,17 +51,19 @@ def test_returns_first_qualifying_neighbor(polygon: Polygon[Fraction],
         for triangle in chunk.triangles:
             if not touches_other_chunk(triangle, chunk, partition):
                 continue
-            expected = next(
-                (candidate
-                 for candidate in partition.triangle_neighbors(triangle)
-                 if candidate in chunk.triangles
-                 and meets_condition(candidate, triangle, chunk, partition)),
-                None)
-            if expected is None:
+            candidates = [candidate
+                          for candidate in partition.triangle_neighbors(
+                              triangle)
+                          if candidate in chunk.triangles]
+            if not candidates:
                 with pytest.raises(ValueError, match="Couldn't find"):
                     edge_neighbor(triangle, chunk, partition)
-            else:
-                assert edge_neighbor(triangle, chunk, partition) is expected
+                continue
+            expected = next(
+                (candidate for candidate in candidates
+                 if meets_condition(candidate, triangle, chunk, partition)),
+                candidates[0])
+            assert edge_neighbor(triangle, chunk, partition) is expected
 
 
 def test_skips_neighbor_near_border() -> None:
@@ -75,11 +77,21 @@ def test_skips_neighbor_near_border() -> None:
     assert edge_neighbor(bottom, chunk, partition) is bottom_left
 
 
-def test_no_qualifying_neighbor() -> None:
+def test_falls_back_to_first_chunk_neighbor() -> None:
     partition, chunks = to_inner_triangle_partition()
     (inner,) = chunks["inner"].triangles
     chunk = unite_all(partition,
                       chunks["inner"], chunks["bottom"], chunks["left"])
+    # both `bottom` and `left` touch other chunks besides through `inner`
+    first = next(neighbor for neighbor in partition.triangle_neighbors(inner)
+                 if neighbor in chunk.triangles)
+
+    assert edge_neighbor(inner, chunk, partition) is first
+
+
+def test_no_chunk_neighbor() -> None:
+    partition, chunks = to_inner_triangle_partition()
+    (inner,) = chunks["inner"].triangles
 
     with pytest.raises(ValueError, match="Couldn't find"):
-        edge_neighbor(inner, chunk, partition)
+        edge_neighbor(inner, chunks["inner"], partition)

@@ -435,20 +435,29 @@ def edge_neighbor(triangle: CachedPolygon,
     """
     Finds the neighbor of the triangle to split along with it.
 
-    Returns the first neighbor C of the triangle within the chunk such
+    Prefers the first neighbor C of the triangle within the chunk such
     that no neighbor of C other than the triangle touches another chunk,
-    i.e. C reaches the chunk's border only through the triangle. Expects
-    a triangle touching another chunk, as ``border_edge_triangle``
-    returns.
+    i.e. C reaches the chunk's border only through the triangle; without
+    one, takes the first neighbor within the chunk. Either works for
+    ``divide_border_edge_triangle``: cutting the triangle at the midpoint
+    of its edge with any neighbor in the chunk leaves a half that
+    touches the other chunk and can be moved without disconnecting
+    anything (the other half and the neighbor's two halves keep the rest
+    connected). Expects a triangle touching another chunk, as
+    ``border_edge_triangle`` returns.
     :param triangle: triangle of the chunk touching another chunk
     :param chunk: chunk the triangle belongs to
     :param partition: partition the chunk belongs to
-    :return: the first neighbor of the triangle meeting the condition
-    :raises ValueError: if no neighbor of the triangle meets it
+    :return: the first neighbor of the triangle within the chunk meeting
+    the condition, or the first one within the chunk if none does
+    :raises ValueError: if the triangle has no neighbor within the chunk
     """
-    for neighbor in partition.triangle_neighbors(triangle):
-        if neighbor not in chunk.triangles:
-            continue
+    chunk_neighbors = [neighbor
+                       for neighbor in partition.triangle_neighbors(triangle)
+                       if neighbor in chunk.triangles]
+    if not chunk_neighbors:
+        raise ValueError("Couldn't find edge neighbor.")
+    for neighbor in chunk_neighbors:
         neighbor_neighbors = partition.triangle_neighbors(neighbor)
         # `triangle` is among them and touches another chunk, so a count
         # of 1 means that none of the others does.
@@ -459,7 +468,7 @@ def edge_neighbor(triangle: CachedPolygon,
         draw(*partition.chunk_map, blue=chunk, red=neighbor)
         if count == 1:
             return neighbor
-    raise ValueError("Couldn't find edge neighbor.")
+    return chunk_neighbors[0]
 
 
 def divide(partition: Partition,
