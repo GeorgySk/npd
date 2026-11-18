@@ -122,6 +122,9 @@ refinements = st.tuples(st.integers(0), inner_fractions)
 high_requirement_factors = st.fractions(Fraction(3, 4), Fraction(1),
                                         max_denominator=100).filter(
     lambda factor: factor < 1)
+# requirements as fractions of the area that `nonconvex.split` accepts
+requirement_factors = st.fractions(0, 1, max_denominator=100).filter(
+    lambda factor: 0 < factor < 1)
 # requirements as fractions of the area that `nonconvex.split` rejects
 invalid_requirement_factors = (st.fractions(max_value=0)
                                | st.fractions(min_value=1))

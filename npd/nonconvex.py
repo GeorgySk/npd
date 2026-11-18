@@ -30,15 +30,25 @@ def split(partition: Partition,
     """
     Splits the partition into a chunk of the required area and the rest.
 
-    :param partition: partition of the polygon, updated in-place
+    Joins chunks in rounds (``join_pairs``, then ``swap_leaves`` once the
+    smallest chunk is big enough) until one is satisfactory (see
+    ``is_satisfactory_area``) or two are left, joins the remaining small
+    chunks (``join_small_chunks``), picks a chunk and unites the rest
+    into its remainder (``most_compact_pair``), then shrinks or grows the
+    chunk to the required area exactly (``readjust``,
+    ``add_triangles``). Both parts come out connected.
+    :param partition: partition of the polygon, updated in-place; left
+    with the two parts as its only chunks
     :param requirement: area of the chunk to split off
     :return: the chunk with the required area and the remainder chunk
     :raises ValueError: if the requirement isn't positive and less than
-    the partition's total area
+    the partition's total area, or the partition is a single triangle
     """
     if not 0 < requirement < partition.total_area:
         raise ValueError("Requirement must be positive and less than "
                          "the partition's total area.")
+    if len(partition.triangular_map) < PARTS_COUNT:
+        raise ValueError("The partition must have at least two triangles")
     # Joining stops at two chunks, even if neither is satisfactory (only
     # possible for requirements above 3/4 of the total area): the steps
     # below need a chunk and a remainder.
@@ -53,15 +63,15 @@ def split(partition: Partition,
     join_small_chunks(partition, requirement=requirement)
     chunk, remainder = most_compact_pair(partition)
     if chunk.area > requirement:
-        chunk, remainder = readjust(chunk,
-                                    remainder,
-                                    requirement=requirement,
-                                    partition=partition)
+        readjust(chunk,
+                 remainder,
+                 requirement=requirement,
+                 partition=partition)
     elif chunk.area < requirement:
-        chunk, remainder = add_triangles(chunk,
-                                         remainder,
-                                         requirement=requirement,
-                                         partition=partition)
+        add_triangles(chunk,
+                      remainder,
+                      requirement=requirement,
+                      partition=partition)
     return chunk, remainder
 
 

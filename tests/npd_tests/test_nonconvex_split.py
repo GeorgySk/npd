@@ -1,3 +1,4 @@
+import math
 from fractions import Fraction
 
 import pytest
@@ -8,13 +9,18 @@ from hypothesis import given
 
 from npd import nonconvex
 from npd.npd import to_partition
-from tests.utils import (is_connected,
-                         rebuilt_neighbors)
+from npd.structures import (Chunk,
+                            Partition,
+                            to_triangular_map)
 from tests.strategies.base import (high_requirement_factors,
                                    invalid_requirement_factors,
                                    polygons,
+                                   requirement_factors,
                                    sparse_deltas,
                                    varied_polygons)
+from tests.utils import (border_length,
+                         is_connected,
+                         rebuilt_neighbors)
 
 
 @given(polygon=polygons,
@@ -45,21 +51,66 @@ def test_requirement_leaving_two_unsatisfactory_chunks() -> None:
     assert remainder.area == square.area - requirement
 
 
+def assert_valid_split(partition: Partition,
+                       chunk: Chunk,
+                       remainder: Chunk,
+                       requirement: Fraction) -> None:
+    assert chunk.area == requirement
+    assert remainder.area == partition.total_area - requirement
+    assert set(partition.chunk_map) == {chunk, remainder}
+    assert is_connected(partition, chunk.triangles)
+    assert is_connected(partition, remainder.triangles)
+    assert partition.chunk_map == rebuilt_neighbors(partition)
+    assert partition.triangular_map == to_triangular_map(
+        list(partition.triangular_map))
+    for chunk_ in (chunk, remainder):
+        assert chunk_.area == sum(triangle.area
+                                  for triangle in chunk_.triangles)
+        assert math.isclose(chunk_.perimeter,
+                            border_length(chunk_.triangles, partition))
+
+
+@given(polygon=varied_polygons,
+       delta=sparse_deltas,
+       factor=requirement_factors)
+def test_any_requirement(polygon: Polygon[Fraction],
+                         delta: Fraction,
+                         factor: Fraction) -> None:
+    partition = to_partition(polygon, delta=delta)
+    if len(partition.triangular_map) < 2:  # noqa: PLR2004
+        return
+    requirement = polygon.area * factor
+
+    chunk, remainder = nonconvex.split(partition, requirement=requirement)
+
+    assert_valid_split(partition, chunk, remainder, requirement)
+
+
 @given(polygon=varied_polygons,
        delta=sparse_deltas,
        factor=high_requirement_factors)
 def test_high_requirement(polygon: Polygon[Fraction],
                           delta: Fraction,
                           factor: Fraction) -> None:
+    # Joining can end at two chunks, neither of them satisfactory.
     partition = to_partition(polygon, delta=delta)
-    if len(partition.chunk_map) < 2:  # noqa: PLR2004
-        return  # a single triangle can't be split yet
+    if len(partition.triangular_map) < 2:  # noqa: PLR2004
+        return
     requirement = polygon.area * factor
 
     chunk, remainder = nonconvex.split(partition, requirement=requirement)
 
-    assert chunk.area == requirement
-    assert remainder.area == polygon.area - requirement
+    assert_valid_split(partition, chunk, remainder, requirement)
+
+
+def test_single_triangle() -> None:
+    triangle = Polygon(Contour([Point(Fraction(0), Fraction(0)),
+                                Point(Fraction(1), Fraction(0)),
+                                Point(Fraction(0), Fraction(1))]), [])
+    partition = Partition(triangle)
+
+    with pytest.raises(ValueError, match="at least two triangles"):
+        nonconvex.split(partition, requirement=triangle.area / 2)
 
 
 def test_l_shape() -> None:
