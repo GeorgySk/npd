@@ -285,6 +285,21 @@ class Partition:
         shared_length = sum(map(fast_length, self.shared_edges(chunk, other)))
         return chunk.perimeter + other.perimeter - 2 * shared_length
 
+    def union_compactness(self,
+                          chunk: Chunk,
+                          other: Chunk) -> float:
+        """
+        Calculates the compactness of the union of two distinct chunks.
+
+        Matches ``Chunk.compactness`` of the chunk ``unite`` would build.
+        :param chunk: any chunk from the partition
+        :param other: any other chunk from the partition
+        :return: compactness of a chunk that could be obtained if the
+        chunks were to be united
+        """
+        return ((chunk.area + other.area) ** 0.5
+                / self.union_perimeter(chunk, other))
+
     def _neighbors_of_union(self,
                             chunk: Chunk,
                             other: Chunk) -> SharedEdgesPerNeighbor:

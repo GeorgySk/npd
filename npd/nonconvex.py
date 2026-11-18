@@ -135,9 +135,8 @@ def join_pairs(partition: Partition) -> None:
             continue
         best_target = max(
             neighbors,
-            key=lambda neighbor: (
-                (source.area + neighbor.area) ** 0.5
-                / partition.union_perimeter(source, neighbor)))
+            key=lambda neighbor: partition.union_compactness(source,
+                                                             neighbor))
         del unmerged[source]
         del unmerged[best_target]
         if len(source.triangles) > PLOT_STARTING_NUMBER:
@@ -193,35 +192,36 @@ def join_small_chunks(partition: Partition,
     """
     Joins chunks with unsatisfactory areas with their neighbors.
 
-    Finds chunks that are not close enough to the area requirement
-    and joins them with their neighbors to form larger chunks.
-    :param partition: input partition
+    Repeatedly takes the least compact chunk whose area isn't
+    satisfactory (see ``is_satisfactory_area``) and unites it with the
+    neighbor giving the most compact union. Neighbors whose union would
+    exceed the requirement by more than the chunk falls short of it are
+    skipped, and a chunk with no other neighbor is left as is. A union
+    that is still unsatisfactory is joined further. Stops when no
+    unsatisfactory chunk can be joined or only two chunks are left.
+    :param partition: partition to update in place
     :param requirement: area requirement
     """
-    potential_sources = dict.fromkeys(
+    sources = dict.fromkeys(
         chunk for chunk in partition.chunk_map
         if not is_satisfactory_area(chunk.area, requirement=requirement))
-    while potential_sources and len(partition.chunk_map) > PARTS_COUNT:
-        source = min(potential_sources, key=Chunk.compactness)
-        best_target = None
-        max_compactness = 0.0
-        neighbors = list(partition.chunk_neighbors(source))
-        for neighbor in neighbors:
-            area = source.area + neighbor.area
-            if area - requirement > requirement - source.area:
-                continue
-            perimeter = partition.union_perimeter(source, neighbor)
-            compactness_ = area ** 0.5 / perimeter
-            if compactness_ > max_compactness:
-                best_target = neighbor
-                max_compactness = compactness_
-        potential_sources.pop(source)
-        if best_target is not None:
-            potential_sources.pop(best_target, None)
-            union = partition.unite(source, best_target)
-            if (not requirement - union.area <= 2 * union.area - requirement
-                    >= 0):
-                potential_sources.setdefault(union)
+    while sources and len(partition.chunk_map) > PARTS_COUNT:
+        source = min(sources, key=Chunk.compactness)
+        del sources[source]
+        shortfall = requirement - source.area
+        targets = [neighbor
+                   for neighbor in partition.chunk_neighbors(source)
+                   if source.area + neighbor.area - requirement <= shortfall]
+        if not targets:
+            continue
+        best_target = max(
+            targets,
+            key=lambda neighbor: partition.union_compactness(source,
+                                                             neighbor))
+        sources.pop(best_target, None)
+        union = partition.unite(source, best_target)
+        if not is_satisfactory_area(union.area, requirement=requirement):
+            sources.setdefault(union)
 
 
 def most_compact_pair(partition: Partition) -> tuple[Chunk, Chunk]:

@@ -206,3 +206,21 @@ def border_length(triangles: Collection[CachedPolygon],
                for triangle in triangles
                for edge, neighbor in partition.triangular_map[triangle].items()
                if neighbor not in triangles)
+
+
+@given(polygon=varied_polygons,
+       delta=sparse_deltas,
+       operations=partition_operations)
+def test_union_compactness(polygon: Polygon[Fraction],
+                           delta: Fraction,
+                           operations: list[tuple[bool, int, int]]) -> None:
+    partition = to_partition(polygon, delta=delta)
+    apply(partition, operations)
+    chunk = next(iter(partition.chunk_map))
+    neighbors = partition.chunk_neighbors(chunk)
+    if not neighbors:
+        return
+
+    result = partition.union_compactness(chunk, neighbors[0])
+
+    assert result == partition.unite(chunk, neighbors[0]).compactness()
