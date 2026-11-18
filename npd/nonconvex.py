@@ -2,7 +2,6 @@
 import logging
 from fractions import Fraction
 from itertools import chain
-from typing import cast
 
 from gon.base import (Contour,
                       Point,
@@ -605,32 +604,40 @@ def find_pivot(triangle: CachedPolygon,
                partition: Partition,
                chunk: Chunk) -> int:
     """
-    Finds the index of the vertex to split the triangle from.
+    Finds the index of the vertex to cut the triangle from.
 
-    :param triangle:
-    :param partition:
-    :param chunk:
-    :return:
+    ``final_node_refinement`` cuts the triangle from the pivot P to the
+    edge opposite it, keeps the part with the vertex before P in the
+    chunk and moves the part with the vertex after P to the other chunk.
+    So that the kept part stays attached to the chunk, the edge from the
+    vertex before P to P is the one shared with the triangle's first
+    neighbor in the chunk. If there is none, the moved part stays
+    attached to the other chunk instead: the edge from P to the vertex
+    after it is the one shared with the triangle's first neighbor
+    outside the chunk (the other chunk, as there are only two chunks
+    when this is called).
+    :param triangle: triangle of the chunk to cut
+    :param partition: partition the chunk belongs to
+    :param chunk: chunk the triangle belongs to
+    :return: index of the pivot among the triangle's vertices, 0 if the
+    triangle has no neighbors
     """
-    predecessor = next(
-        (neighbor for neighbor in partition.triangle_neighbors(triangle)
-         if neighbor in chunk.triangles), None)
-    if predecessor is not None:
-        unoriented_edge = partition.edge_between_triangles(triangle,
-                                                           predecessor)
-        oriented_edge = next(edge for edge in triangle.edges
-                             if edge == unoriented_edge)
-        return cast("int",
-                    triangle.border.vertices.index(oriented_edge.end))
-    neighbor = next(
-        (neighbor for neighbor in partition.triangle_neighbors(triangle)
-         if neighbor not in chunk.triangles), None)
-    if neighbor is None:
+    neighbors = partition.triangular_map[triangle]
+    vertices = triangle.border.vertices
+    chunk_edge = next((edge for edge, neighbor in neighbors.items()
+                       if neighbor is not None
+                       and neighbor in chunk.triangles), None)
+    if chunk_edge is not None:
+        return next(index for index in range(len(vertices))
+                    if Segment(vertices[index - 1], vertices[index])
+                    == chunk_edge)
+    outside_edge = next((edge for edge, neighbor in neighbors.items()
+                         if neighbor is not None), None)
+    if outside_edge is None:
         return 0  # any index will do
-    unoriented_edge = partition.edge_between_triangles(triangle, neighbor)
-    oriented_edge = next(edge for edge in triangle.edges
-                         if edge == unoriented_edge)
-    return cast("int", triangle.border.vertices.index(oriented_edge.start))
+    return next(index for index in range(len(vertices))
+                if Segment(vertices[index], vertices[index - 2])
+                == outside_edge)
 
 
 def add_triangles(chunk: Chunk,
