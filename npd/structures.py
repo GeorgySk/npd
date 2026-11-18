@@ -174,11 +174,15 @@ class Partition:
         """
         return list(self.chunk_map[chunk])
 
-    def triangle_neighbors(self, triangle: CachedPolygon
-                           ) -> list[CachedPolygon]:
+    def triangle_neighbors(self,
+                           triangle: CachedPolygon) -> list[CachedPolygon]:
         """
         Lists the neighbor triangles of the given triangle.
 
+        Neighbors are the triangles sharing an edge with it; edges on the
+        polygon's border have none and are skipped. They come in the
+        order of the triangle's edges in the triangular map, which
+        callers in ``nonconvex`` use for tie-breaking.
         :param triangle: any triangle in the triangular map
         :return: a list of triangle's neighbors
         """
