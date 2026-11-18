@@ -7,6 +7,8 @@ from gon.base import (Contour,
                       Polygon,
                       Segment)
 
+from npd.nonconvex import collect_remainder
+from npd.npd import to_partition
 from npd.structures import (CachedPolygon,
                             Chunk,
                             Partition)
@@ -149,3 +151,18 @@ def unite_all(partition: Partition, *chunks: Chunk) -> Chunk:
         rest.remove(chunk)
         result = partition.unite(result, chunk)
     return result
+
+
+def to_two_chunks(polygon: Polygon[Fraction],
+                  delta: Fraction,
+                  operations: list[tuple[bool, int, int]],
+                  choice: int) -> tuple[Partition, Chunk, Chunk] | None:
+    """Reduces a partition to a chunk and its remainder, as ``split``."""
+    partition = to_partition(polygon, delta=delta)
+    apply(partition, operations)
+    if len(partition.chunk_map) < 2:  # noqa: PLR2004
+        return None
+    candidates = [chunk for chunk in partition.chunk_map
+                  if not partition.is_articulation_chunk(chunk)]
+    chunk = candidates[choice % len(candidates)]
+    return partition, chunk, collect_remainder(chunk, partition)

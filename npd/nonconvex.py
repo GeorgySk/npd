@@ -685,12 +685,26 @@ def add_triangles(chunk: Chunk,
     """
     Moves triangles from the neighbor to the chunk to meet the requirement.
 
-    :param chunk:
-    :param neighbor:
-    :param requirement:
-    :param partition:
-    :return:
+    Each round moves the first triangle of the neighbor that touches the
+    chunk and can leave without disconnecting the neighbor. If no
+    triangle can be moved, one is split first
+    (``divide_border_edge_triangle``), which always yields one that can.
+    Once the chunk's area exceeds the requirement, the last triangle is
+    cut to meet it exactly (``final_node_refinement``). Expects the
+    partition to consist of the chunk and its neighbor only: a triangle
+    touching only a third chunk could otherwise be moved to a chunk it
+    doesn't touch.
+    :param chunk: chunk to grow, updated in place
+    :param neighbor: the other chunk, updated in place
+    :param requirement: required area of the chunk
+    :param partition: partition of the two chunks, updated in place
+    :return: the chunk and its neighbor
+    :raises ValueError: if the requirement isn't strictly between the
+    chunk's area and the area of both chunks
     """
+    if not chunk.area < requirement < chunk.area + neighbor.area:
+        raise ValueError("The requirement must be strictly between the "
+                         "chunk's area and the area of both chunks")
     draw(*partition.chunk_map, red=chunk)
     while True:
         triangle = next(partition.movable_triangles(neighbor), None)

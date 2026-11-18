@@ -122,8 +122,8 @@ class Partition:
         Checks if removing the triangle would disconnect the other ones.
 
         Triangles count as connected only through shared edges. The given
-        triangles are expected to be connected: otherwise every one of
-        them is reported as an articulation triangle.
+        triangles are expected to be connected; otherwise the result is
+        meaningless.
         :param triangle_to_remove: one of the given triangles
         :param chunk_triangles: connected triangles, usually a chunk's
         :return: True if the other triangles wouldn't all be connected,
@@ -133,10 +133,14 @@ class Partition:
         if triangle_to_remove not in chunk_triangles:
             raise ValueError("The triangle must be one of the given "
                              "triangles")
-        root = next((triangle for triangle in chunk_triangles
-                     if triangle is not triangle_to_remove), None)
-        if root is None:
+        inner_neighbors = [
+            neighbor
+            for neighbor in self.triangle_neighbors(triangle_to_remove)
+            if neighbor in chunk_triangles]
+        if len(inner_neighbors) <= 1:
+            # The others were connected without passing through it.
             return False
+        root = inner_neighbors[0]
         seen, stack = {triangle_to_remove, root}, [root]
         while stack:
             for neighbor in self.triangle_neighbors(stack.pop()):

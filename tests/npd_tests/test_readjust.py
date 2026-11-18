@@ -5,35 +5,16 @@ import pytest
 from gon.base import Polygon
 from hypothesis import given
 
-from npd.nonconvex import (collect_remainder,
-                           readjust)
-from npd.npd import to_partition
-from npd.structures import (Chunk,
-                            Partition,
-                            to_triangular_map)
+from npd.nonconvex import readjust
+from npd.structures import to_triangular_map
 from tests.strategies.base import (partition_operations,
                                    refinements,
                                    sparse_deltas,
                                    varied_polygons)
-from tests.utils import (apply,
-                         border_length,
+from tests.utils import (border_length,
                          is_connected,
-                         rebuilt_neighbors)
-
-
-def to_two_chunks(polygon: Polygon[Fraction],
-                  delta: Fraction,
-                  operations: list[tuple[bool, int, int]],
-                  choice: int) -> tuple[Partition, Chunk, Chunk] | None:
-    """Reduces a partition to a chunk and its remainder, as ``split``."""
-    partition = to_partition(polygon, delta=delta)
-    apply(partition, operations)
-    if len(partition.chunk_map) < 2:  # noqa: PLR2004
-        return None
-    candidates = [chunk for chunk in partition.chunk_map
-                  if not partition.is_articulation_chunk(chunk)]
-    chunk = candidates[choice % len(candidates)]
-    return partition, chunk, collect_remainder(chunk, partition)
+                         rebuilt_neighbors,
+                         to_two_chunks)
 
 
 @given(polygon=varied_polygons,
