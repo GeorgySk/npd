@@ -231,46 +231,44 @@ def join_small_chunks(partition: Partition,
 
 def most_compact_pair(partition: Partition) -> tuple[Chunk, Chunk]:
     """
-    Finds the most compact pair of chunks for the given partition.
+    Picks a chunk and unites all the other chunks into its remainder.
 
-    :param partition: input partition
-    :return: a pair of the most compact chunks
+    Among the chunks whose removal leaves the other chunks connected,
+    picks the one for which the less compact of the chunk and its
+    remainder is the most compact (the first one on ties).
+    :param partition: partition with at least two chunks, updated
+    in-place: all the chunks except the picked one are united
+    :return: the picked chunk and the remainder
     """
-    perimeter_edges = {
-        edge for triangle, neighbor_map in partition.triangular_map.items()
-        for edge, neighbor in neighbor_map.items()
-        if neighbor is None}
-    total_perimeter = sum(map(fast_length, perimeter_edges))
-    max_compactness = 0
-    best_chunk = None
-    for chunk in partition.chunk_map:
-        if partition.is_articulation_chunk(chunk):
-            continue
-        chunk_compactness = chunk.area ** 0.5 / chunk.perimeter
-        remainder_area = partition.total_area - chunk.area
-        chunk_edges = {edge for triangle in chunk.triangles
-                       for edge in partition.triangular_map[triangle]}
-        common_edges = {edge for edge in chunk_edges
-                        if edge in perimeter_edges}
-        chunk_only_edges = {
-            edge
-            for triangle in chunk.triangles
-            for edge, neighbor in partition.triangular_map[triangle].items()
-            if neighbor is not None and neighbor not in chunk.triangles}
-        chunk_only_perimeter = sum(map(fast_length, chunk_only_edges))
-        common_perimeter = sum(map(fast_length, common_edges))
-        remainder_perimeter = (total_perimeter - common_perimeter
-                               + chunk_only_perimeter)
-        remainder_compactness = remainder_area ** 0.5 / remainder_perimeter
-        compactness_min_of_two = min(chunk_compactness, remainder_compactness)
-        draw(*partition.chunk_map, red=chunk)
-        if compactness_min_of_two > max_compactness:
-            best_chunk = chunk
-            max_compactness = compactness_min_of_two
-    if best_chunk is None:
-        raise RuntimeError("Couldn't find the best chunk")
-    remainder = collect_remainder(best_chunk, partition)
-    return best_chunk, remainder
+    border_perimeter = sum(fast_length(edge)
+                           for neighbors in partition.triangular_map.values()
+                           for edge, neighbor in neighbors.items()
+                           if neighbor is None)
+
+    def score(chunk: Chunk) -> float:
+        # Each edge appears once among the chunk's triangles, so there's
+        # no need to collect them in sets (hashing them is slow).
+        chunk_border_perimeter = shared_perimeter = 0.
+        for triangle in chunk.triangles:
+            for edge, neighbor in partition.triangular_map[triangle].items():
+                if neighbor is None:
+                    chunk_border_perimeter += fast_length(edge)
+                elif neighbor not in chunk.triangles:
+                    shared_perimeter += fast_length(edge)
+        # The remainder's border is the polygon's border without the
+        # chunk's part of it, plus the edges it shares with the chunk.
+        remainder_perimeter = (border_perimeter - chunk_border_perimeter
+                               + shared_perimeter)
+        remainder_compactness: float = (
+            (partition.total_area - chunk.area) ** 0.5
+            / remainder_perimeter)
+        return min(chunk.compactness(), remainder_compactness)
+
+    best_chunk = max((chunk for chunk in partition.chunk_map
+                      if not partition.is_articulation_chunk(chunk)),
+                     key=score)
+    draw(*partition.chunk_map, red=best_chunk)
+    return best_chunk, collect_remainder(best_chunk, partition)
 
 
 def collect_remainder(chunk: Chunk,
