@@ -1,5 +1,4 @@
 import math
-from collections.abc import Collection
 from fractions import Fraction
 
 from gon.base import (Contour,
@@ -17,8 +16,10 @@ from tests.strategies.base import (partition_operations,
                                    sparse_deltas,
                                    varied_polygons)
 from tests.utils import (apply,
+                         border_length,
                          is_connected,
-                         rebuilt_neighbors)
+                         rebuilt_neighbors,
+                         to_strip_partition)
 
 
 @given(polygon=varied_polygons,
@@ -200,15 +201,6 @@ def test_union_perimeter(polygon: Polygon[Fraction],
                                 partition.union_perimeter(other, chunk))
 
 
-def border_length(triangles: Collection[CachedPolygon],
-                  partition: Partition) -> float:
-    return sum(math.dist((edge.start.x, edge.start.y),
-                         (edge.end.x, edge.end.y))
-               for triangle in triangles
-               for edge, neighbor in partition.triangular_map[triangle].items()
-               if neighbor not in triangles)
-
-
 @given(polygon=varied_polygons,
        delta=sparse_deltas,
        operations=partition_operations)
@@ -249,21 +241,7 @@ def test_is_articulation_chunk(polygon: Polygon[Fraction],
 
 
 def test_is_articulation_chunk_in_strip() -> None:
-    # A 3 x 1 strip cut into unit squares, one chunk per square.
-    border = Contour([Point(Fraction(0), Fraction(0)),
-                      Point(Fraction(3), Fraction(0)),
-                      Point(Fraction(3), Fraction(1)),
-                      Point(Fraction(0), Fraction(1))])
-    partition = Partition(Polygon(border, []),
-                          extra_points=[Point(Fraction(x), Fraction(y))
-                                        for x in (1, 2)
-                                        for y in (0, 1)])
-    squares: dict[int, list[Chunk]] = {}
-    for chunk in partition.chunk_map:
-        (triangle,) = chunk.triangles
-        left_x = min(vertex.x for vertex in triangle.border.vertices)
-        squares.setdefault(left_x, []).append(chunk)
-    left, middle, right = (partition.unite(*squares[x]) for x in (0, 1, 2))
+    partition, (left, middle, right) = to_strip_partition()
 
     assert not partition.is_articulation_chunk(left)
     assert partition.is_articulation_chunk(middle)

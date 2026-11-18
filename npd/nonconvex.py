@@ -278,15 +278,24 @@ def collect_remainder(chunk: Chunk,
     """
     Unites all the chunks except the given one into a single chunk.
 
-    :param chunk:
-    :param partition:
-    :return:
+    Repeatedly unites the chunk's first neighbor with one of that
+    neighbor's own neighbors until only the chunk and one other chunk
+    are left.
+    :param chunk: chunk to keep out of the union
+    :param partition: partition with at least two chunks, updated
+    in-place
+    :return: the union of all the other chunks
+    :raises ValueError: if the partition has fewer than two chunks or
+    the other chunks aren't connected without the given one
     """
+    if partition.is_articulation_chunk(chunk):
+        raise ValueError("The other chunks must be connected without "
+                         "the given one")
     while len(partition.chunk_map) > PARTS_COUNT:
         neighbor = partition.chunk_neighbors(chunk)[0]
         neighbors_neighbor = next(
             node for node in partition.chunk_neighbors(neighbor)
-            if node != chunk)
+            if node is not chunk)
         partition.unite(neighbor, neighbors_neighbor)
     return partition.chunk_neighbors(chunk)[0]
 

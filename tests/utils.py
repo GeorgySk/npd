@@ -1,7 +1,11 @@
+import math
 from collections.abc import Collection
 from fractions import Fraction
 
-from gon.base import Segment
+from gon.base import (Contour,
+                      Point,
+                      Polygon,
+                      Segment)
 
 from npd.structures import (CachedPolygon,
                             Chunk,
@@ -66,3 +70,35 @@ def is_connected(partition: Partition,
                 seen.add(neighbor)
                 stack.append(neighbor)
     return len(seen) == len(triangles)
+
+
+def border_length(triangles: Collection[CachedPolygon],
+                  partition: Partition) -> float:
+    return sum(math.dist((edge.start.x, edge.start.y),
+                         (edge.end.x, edge.end.y))
+               for triangle in triangles
+               for edge, neighbor in partition.triangular_map[triangle].items()
+               if neighbor not in triangles)
+
+
+def to_strip_partition() -> tuple[Partition, list[Chunk]]:
+    """
+    Builds a 3 x 1 strip cut into unit squares, one chunk per square.
+
+    Only the middle chunk is an articulation chunk.
+    """
+    border = Contour([Point(Fraction(0), Fraction(0)),
+                      Point(Fraction(3), Fraction(0)),
+                      Point(Fraction(3), Fraction(1)),
+                      Point(Fraction(0), Fraction(1))])
+    partition = Partition(Polygon(border, []),
+                          extra_points=[Point(Fraction(x), Fraction(y))
+                                        for x in (1, 2)
+                                        for y in (0, 1)])
+    squares: dict[Fraction, list[Chunk]] = {}
+    for chunk in partition.chunk_map:
+        (triangle,) = chunk.triangles
+        left_x = min(vertex.x for vertex in triangle.border.vertices)
+        squares.setdefault(left_x, []).append(chunk)
+    return partition, [partition.unite(*squares[Fraction(x)])
+                       for x in range(3)]
