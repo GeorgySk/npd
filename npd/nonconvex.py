@@ -435,17 +435,25 @@ def edge_neighbor(triangle: CachedPolygon,
                   chunk: Chunk,
                   partition: Partition) -> CachedPolygon:
     """
-    Finds the neighbor of the triangle that should be split.
+    Finds the neighbor of the triangle to split along with it.
 
-    :param triangle:
-    :param chunk:
-    :param partition:
-    :return:
+    Returns the first neighbor C of the triangle within the chunk such
+    that no neighbor of C other than the triangle touches another chunk,
+    i.e. C reaches the chunk's border only through the triangle. Expects
+    a triangle touching another chunk, as ``border_edge_triangle``
+    returns.
+    :param triangle: triangle of the chunk touching another chunk
+    :param chunk: chunk the triangle belongs to
+    :param partition: partition the chunk belongs to
+    :return: the first neighbor of the triangle meeting the condition
+    :raises ValueError: if no neighbor of the triangle meets it
     """
     for neighbor in partition.triangle_neighbors(triangle):
         if neighbor not in chunk.triangles:
             continue
         neighbor_neighbors = partition.triangle_neighbors(neighbor)
+        # `triangle` is among them and touches another chunk, so a count
+        # of 1 means that none of the others does.
         count = sum(partition.is_touching_other_chunk(neighbor_neighbor,
                                                       this_chunk=chunk)
                     for neighbor_neighbor in neighbor_neighbors)

@@ -1,9 +1,7 @@
 from fractions import Fraction
 
 import pytest
-from gon.base import (Contour,
-                      Point,
-                      Polygon)
+from gon.base import Polygon
 from hypothesis import given
 
 from npd.nonconvex import border_edge_triangle
@@ -14,7 +12,9 @@ from npd.structures import (CachedPolygon,
 from tests.strategies.base import (partition_operations,
                                    sparse_deltas,
                                    varied_polygons)
-from tests.utils import apply
+from tests.utils import (apply,
+                         to_inner_triangle_partition,
+                         unite_all)
 
 
 def meets_conditions(triangle: CachedPolygon,
@@ -67,49 +67,6 @@ def test_returns_first_qualifying_triangle(polygon: Polygon[Fraction],
                 assert border_edge_triangle(chunk,
                                             neighbor,
                                             partition) is expected
-
-
-def to_point(x: int, y: int) -> Point[Fraction]:
-    return Point(Fraction(x), Fraction(y))
-
-
-def to_inner_triangle_partition() -> tuple[Partition,
-                                           dict[str, Chunk]]:
-    """
-    Square with an inner triangle, one chunk per triangle.
-
-    The inner triangle ``inner`` borders ``bottom``, ``right`` and
-    ``left``, which have no edge on the square's border; each of the
-    four corner triangles borders two of them or another corner.
-    """
-    partition = Partition(
-        Polygon(Contour([to_point(0, 0), to_point(4, 0),
-                         to_point(4, 4), to_point(0, 4)]), []),
-        extra_points=[to_point(1, 1), to_point(3, 1), to_point(2, 3)])
-    names = {
-        frozenset({(1, 1), (3, 1), (2, 3)}): "inner",
-        frozenset({(1, 1), (4, 0), (3, 1)}): "bottom",
-        frozenset({(2, 3), (3, 1), (4, 4)}): "right",
-        frozenset({(0, 4), (1, 1), (2, 3)}): "left",
-        frozenset({(3, 1), (4, 0), (4, 4)}): "bottom_right",
-        frozenset({(0, 4), (2, 3), (4, 4)}): "top",
-        frozenset({(0, 0), (1, 1), (0, 4)}): "top_left",
-        frozenset({(0, 0), (4, 0), (1, 1)}): "bottom_left",
-    }
-    chunks = {}
-    for chunk in partition.chunk_map:
-        (triangle,) = chunk.triangles
-        vertices = frozenset((int(vertex.x), int(vertex.y))
-                             for vertex in triangle.border.vertices)
-        chunks[names[vertices]] = chunk
-    return partition, chunks
-
-
-def unite_all(partition: Partition, *chunks: Chunk) -> Chunk:
-    result, *rest = chunks
-    for chunk in rest:
-        result = partition.unite(result, chunk)
-    return result
 
 
 @pytest.mark.parametrize(("neighbor_names", "found"),
