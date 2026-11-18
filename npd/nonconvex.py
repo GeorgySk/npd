@@ -305,21 +305,34 @@ def readjust(chunk: Chunk,
     """
     Moves triangles from the chunk to its neighbor to meet the requirement.
 
-    :param chunk:
-    :param neighbor:
-    :param requirement:
-    :param partition:
-    :return:
+    Each round moves the first triangle of the chunk that touches the
+    neighbor and can leave without disconnecting the chunk. Triangles
+    next to ones already moved are set aside and tried last, so that the
+    chunk shrinks along its border instead of being dug into in one
+    place. If no triangle can be moved, one is split first
+    (``divide_border_edge_triangle``), which always yields one that can.
+    Once the chunk's area drops below the requirement, the last triangle
+    is moved back and cut to meet it exactly
+    (``final_node_refinement``). Expects the partition to consist of the
+    chunk and its neighbor only: a triangle touching a third chunk could
+    otherwise be moved to a neighbor it doesn't touch.
+    :param chunk: chunk to shrink, updated in place
+    :param neighbor: the other chunk, updated in place
+    :param requirement: required area of the chunk
+    :param partition: partition of the two chunks, updated in place
+    :return: the chunk and its neighbor
+    :raises ValueError: if the requirement isn't below the chunk's area
     """
+    if not requirement < chunk.area:
+        raise ValueError("The requirement must be below the chunk's area")
     draw(*partition.chunk_map, red=chunk)
-    ignored_neighbors: dict[CachedPolygon, None] = {}
+    set_aside: dict[CachedPolygon, None] = {}
     while True:
-        unignored_chunk_triangles = (triangle for triangle in chunk.triangles
-                                     if triangle not in ignored_neighbors)
         # Set-aside triangles can have been moved out of the chunk since.
         prioritized_chunk_triangles = chain(
-            unignored_chunk_triangles,
-            (triangle for triangle in ignored_neighbors
+            (triangle for triangle in chunk.triangles
+             if triangle not in set_aside),
+            (triangle for triangle in set_aside
              if triangle in chunk.triangles))
         border_triangle = next(
             (triangle for triangle in prioritized_chunk_triangles
@@ -327,21 +340,18 @@ def readjust(chunk: Chunk,
              and not partition.is_articulation_triangle(triangle,
                                                         chunk.triangles)
              ), None)
-        if border_triangle is None and ignored_neighbors:
-            ignored_neighbors = {}
-            continue
         if border_triangle is None:
+            # The search covered every triangle of the chunk, set-aside
+            # ones included, so one has to be split.
+            set_aside = {}
             divide_border_edge_triangle(chunk, neighbor, partition)
-            border_triangle = next(
-                triangle for triangle in partition.border_triangles(chunk)
-                if not partition.is_articulation_triangle(triangle,
-                                                          chunk.triangles))
+            border_triangle = next(partition.movable_triangles(chunk))
             draw(*partition.chunk_map, blue=chunk)
 
         partition.move(border_triangle, source=chunk, target=neighbor)
         for neighbor_triangle in partition.triangle_neighbors(border_triangle):
             if neighbor_triangle in chunk.triangles:
-                ignored_neighbors.setdefault(neighbor_triangle)
+                set_aside.setdefault(neighbor_triangle)
         draw(*partition.chunk_map, blue=chunk)
         if chunk.area == requirement:
             return chunk, neighbor
