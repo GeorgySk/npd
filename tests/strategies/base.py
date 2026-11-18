@@ -89,6 +89,11 @@ partition_operations = st.lists(st.tuples(st.booleans(),
                                           st.integers(0),
                                           st.integers(0)),
                                 max_size=MAX_PARTITION_OPERATIONS_COUNT)
+# requirements as fractions of the area above which `nonconvex.split` can
+# join down to two chunks, neither of them satisfactory
+high_requirement_factors = st.fractions(Fraction(3, 4), Fraction(1),
+                                        max_denominator=100).filter(
+    lambda factor: factor < 1)
 # requirements as fractions of the area that `nonconvex.split` rejects
 invalid_requirement_factors = (st.fractions(max_value=0)
                                | st.fractions(min_value=1))

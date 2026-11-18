@@ -93,17 +93,26 @@ class Partition:
         self.total_area = polygon.area
 
     def is_articulation_chunk(self, chunk_to_remove: Chunk) -> bool:
-        """Checks if removal of the given chunk would disconnect the graph."""
-        root = next(chunk for chunk in self.chunk_map
-                    if chunk != chunk_to_remove)
-        seen, stack = {chunk_to_remove}, [root]
+        """
+        Checks if removing the chunk would disconnect the other chunks.
+
+        Chunks count as connected only through shared edges, so if the
+        other chunks stay connected, their union is a single polygon.
+        :param chunk_to_remove: any chunk from the partition
+        :return: True if the other chunks wouldn't all be connected
+        :raises ValueError: if the partition has fewer than two chunks
+        """
+        root = next((chunk for chunk in self.chunk_map
+                     if chunk is not chunk_to_remove), None)
+        if root is None:
+            raise ValueError("Needs at least two chunks")
+        seen, stack = {chunk_to_remove, root}, [root]
         while stack:
-            chunk = stack.pop()
-            seen.add(chunk)
-            stack.extend(neighbor
-                         for neighbor in self.chunk_map[chunk]
-                         if neighbor not in seen)
-        return len(self.chunk_map) != len(seen)
+            for neighbor in self.chunk_map[stack.pop()]:
+                if neighbor not in seen:
+                    seen.add(neighbor)
+                    stack.append(neighbor)
+        return len(seen) != len(self.chunk_map)
 
     def is_articulation_triangle(self,
                                  triangle_to_remove: CachedPolygon,

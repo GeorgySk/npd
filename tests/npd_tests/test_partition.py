@@ -17,6 +17,7 @@ from tests.strategies.base import (partition_operations,
                                    sparse_deltas,
                                    varied_polygons)
 from tests.utils import (apply,
+                         is_connected,
                          rebuilt_neighbors)
 
 
@@ -224,3 +225,57 @@ def test_union_compactness(polygon: Polygon[Fraction],
     result = partition.union_compactness(chunk, neighbors[0])
 
     assert result == partition.unite(chunk, neighbors[0]).compactness()
+
+
+@given(polygon=varied_polygons,
+       delta=sparse_deltas,
+       operations=partition_operations)
+def test_is_articulation_chunk(polygon: Polygon[Fraction],
+                               delta: Fraction,
+                               operations: list[tuple[bool, int, int]]
+                               ) -> None:
+    partition = to_partition(polygon, delta=delta)
+    apply(partition, operations)
+    if len(partition.chunk_map) < 2:  # noqa: PLR2004
+        return
+
+    for chunk in partition.chunk_map:
+        rest = {triangle: None
+                for other in partition.chunk_map
+                if other is not chunk
+                for triangle in other.triangles}
+        assert (partition.is_articulation_chunk(chunk)
+                is not is_connected(partition, rest))
+
+
+def test_is_articulation_chunk_in_strip() -> None:
+    # A 3 x 1 strip cut into unit squares, one chunk per square.
+    border = Contour([Point(Fraction(0), Fraction(0)),
+                      Point(Fraction(3), Fraction(0)),
+                      Point(Fraction(3), Fraction(1)),
+                      Point(Fraction(0), Fraction(1))])
+    partition = Partition(Polygon(border, []),
+                          extra_points=[Point(Fraction(x), Fraction(y))
+                                        for x in (1, 2)
+                                        for y in (0, 1)])
+    squares: dict[int, list[Chunk]] = {}
+    for chunk in partition.chunk_map:
+        (triangle,) = chunk.triangles
+        left_x = min(vertex.x for vertex in triangle.border.vertices)
+        squares.setdefault(left_x, []).append(chunk)
+    left, middle, right = (partition.unite(*squares[x]) for x in (0, 1, 2))
+
+    assert not partition.is_articulation_chunk(left)
+    assert partition.is_articulation_chunk(middle)
+    assert not partition.is_articulation_chunk(right)
+
+
+def test_is_articulation_chunk_rejects_single_chunk() -> None:
+    border = Contour([Point(Fraction(0), Fraction(0)),
+                      Point(Fraction(1), Fraction(0)),
+                      Point(Fraction(0), Fraction(1))])
+    partition = Partition(Polygon(border, []))
+    (chunk,) = partition.chunk_map
+
+    with pytest.raises(ValueError, match="two chunks"):
+        partition.is_articulation_chunk(chunk)

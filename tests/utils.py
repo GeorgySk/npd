@@ -1,3 +1,4 @@
+from collections.abc import Collection
 from fractions import Fraction
 
 from gon.base import Segment
@@ -52,3 +53,16 @@ def rebuilt_neighbors(partition: Partition
     return {chunk: {neighbor: frozenset(edges)
                     for neighbor, edges in neighbors_edges.items()}
             for chunk, neighbors_edges in result.items()}
+
+
+def is_connected(partition: Partition,
+                 triangles: Collection[CachedPolygon]) -> bool:
+    """Checks if the triangles are connected through shared edges."""
+    root = next(iter(triangles))
+    seen, stack = {root}, [root]
+    while stack:
+        for neighbor in partition.triangle_neighbors(stack.pop()):
+            if neighbor in triangles and neighbor not in seen:
+                seen.add(neighbor)
+                stack.append(neighbor)
+    return len(seen) == len(triangles)

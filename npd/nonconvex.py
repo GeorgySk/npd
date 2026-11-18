@@ -40,7 +40,12 @@ def split(partition: Partition,
     if not 0 < requirement < partition.total_area:
         raise ValueError("Requirement must be positive and less than "
                          "the partition's total area.")
-    while not is_satisfactory_chunk_found(partition, requirement=requirement):
+    # Joining stops at two chunks, even if neither is satisfactory (only
+    # possible for requirements above 3/4 of the total area): the steps
+    # below need a chunk and a remainder.
+    while (len(partition.chunk_map) > PARTS_COUNT
+           and not is_satisfactory_chunk_found(partition,
+                                               requirement=requirement)):
         join_pairs(partition)
         min_chunk_size = min(len(chunk.triangles)
                              for chunk in partition.chunk_map)

@@ -15,6 +15,7 @@ from tests.strategies.base import (partition_operations,
                                    sparse_deltas,
                                    varied_polygons)
 from tests.utils import (apply,
+                         is_connected,
                          rebuilt_neighbors)
 
 # moved triangle, source, target, and the triangle's neighbors in total,
@@ -54,17 +55,6 @@ def swap_recording_moves(partition: Partition) -> list[Move]:
     return moves
 
 
-def is_connected(partition: Partition, chunk: Chunk) -> bool:
-    root = next(iter(chunk.triangles))
-    seen, stack = {root}, [root]
-    while stack:
-        for neighbor in partition.triangle_neighbors(stack.pop()):
-            if neighbor in chunk.triangles and neighbor not in seen:
-                seen.add(neighbor)
-                stack.append(neighbor)
-    return len(seen) == len(chunk.triangles)
-
-
 @given(polygon=varied_polygons,
        delta=sparse_deltas,
        operations=partition_operations)
@@ -89,13 +79,13 @@ def test_keeps_chunks_valid(polygon: Polygon[Fraction],
                             operations: list[tuple[bool, int, int]]) -> None:
     partition = to_partition_after(polygon, delta, operations)
     connected = [chunk for chunk in partition.chunk_map
-                 if is_connected(partition, chunk)]
+                 if is_connected(partition, chunk.triangles)]
 
     swap_leaves(partition)
 
     assert partition.chunk_map == rebuilt_neighbors(partition)
     assert all(chunk.triangles for chunk in partition.chunk_map)
-    assert all(is_connected(partition, chunk) for chunk in connected)
+    assert all(is_connected(partition, chunk.triangles) for chunk in connected)
 
 
 @given(polygon=varied_polygons,
