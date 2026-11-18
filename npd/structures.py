@@ -118,21 +118,31 @@ class Partition:
                                  triangle_to_remove: CachedPolygon,
                                  chunk_triangles: Collection[CachedPolygon]
                                  ) -> bool:
-        """Checks if removing the triangle disconnects the given triangles."""
-        if len(chunk_triangles) == 1:
+        """
+        Checks if removing the triangle would disconnect the other ones.
+
+        Triangles count as connected only through shared edges. The given
+        triangles are expected to be connected: otherwise every one of
+        them is reported as an articulation triangle.
+        :param triangle_to_remove: one of the given triangles
+        :param chunk_triangles: connected triangles, usually a chunk's
+        :return: True if the other triangles wouldn't all be connected,
+        False if there are no other triangles
+        :raises ValueError: if the triangle isn't one of the given ones
+        """
+        if triangle_to_remove not in chunk_triangles:
+            raise ValueError("The triangle must be one of the given "
+                             "triangles")
+        root = next((triangle for triangle in chunk_triangles
+                     if triangle is not triangle_to_remove), None)
+        if root is None:
             return False
-        root = next(triangle for triangle in self.triangular_map
-                    if triangle != triangle_to_remove
-                    and triangle in chunk_triangles)
-        seen, stack = {triangle_to_remove}, [root]
+        seen, stack = {triangle_to_remove, root}, [root]
         while stack:
-            chunk = stack.pop()
-            seen.add(chunk)
-            stack.extend(neighbor
-                         for neighbor in self.triangular_map[chunk].values()
-                         if neighbor is not None
-                         and neighbor not in seen
-                         and neighbor in chunk_triangles)
+            for neighbor in self.triangle_neighbors(stack.pop()):
+                if neighbor in chunk_triangles and neighbor not in seen:
+                    seen.add(neighbor)
+                    stack.append(neighbor)
         return len(chunk_triangles) != len(seen)
 
     def move(self,

@@ -8,6 +8,7 @@ from hypothesis import given
 
 from npd import nonconvex
 from npd.npd import to_partition
+from tests.utils import is_connected
 from tests.strategies.base import (high_requirement_factors,
                                    invalid_requirement_factors,
                                    polygons,
@@ -58,3 +59,23 @@ def test_high_requirement(polygon: Polygon[Fraction],
 
     assert chunk.area == requirement
     assert remainder.area == polygon.area - requirement
+
+
+def test_l_shape() -> None:
+    # `readjust` moves triangles it had set aside to try last; they used
+    # to be checked as articulation triangles of a chunk they had left.
+    l_shape = Polygon(Contour([Point(Fraction(x), Fraction(y))
+                               for x, y in [(0, 0), (2, 0), (2, 1),
+                                            (1, 1), (1, 2), (0, 2)]]), [])
+    partition = to_partition(l_shape, delta=Fraction(1, 3))
+    requirement = Fraction(1, 2)
+
+    chunk, remainder = nonconvex.split(partition, requirement=requirement)
+
+    assert chunk.area == requirement
+    assert remainder.area == l_shape.area - requirement
+    assert set(partition.chunk_map) == {chunk, remainder}
+    assert set(chunk.triangles) | set(remainder.triangles) == set(
+        partition.triangular_map)
+    assert is_connected(partition, chunk.triangles)
+    assert is_connected(partition, remainder.triangles)

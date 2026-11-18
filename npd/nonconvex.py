@@ -317,8 +317,11 @@ def readjust(chunk: Chunk,
     while True:
         unignored_chunk_triangles = (triangle for triangle in chunk.triangles
                                      if triangle not in ignored_neighbors)
-        prioritized_chunk_triangles = chain(unignored_chunk_triangles,
-                                            ignored_neighbors)
+        # Set-aside triangles can have been moved out of the chunk since.
+        prioritized_chunk_triangles = chain(
+            unignored_chunk_triangles,
+            (triangle for triangle in ignored_neighbors
+             if triangle in chunk.triangles))
         border_triangle = next(
             (triangle for triangle in prioritized_chunk_triangles
              if partition.is_touching_other_chunk(triangle, this_chunk=chunk)
