@@ -4,6 +4,7 @@ from math import floor
 from hypothesis import strategies as st
 from hypothesis.strategies import SearchStrategy
 from gon.base import (Contour,
+                      Point,
                       Polygon,
                       Triangulation)
 from ground.base import get_context
@@ -89,6 +90,21 @@ partition_operations = st.lists(st.tuples(st.booleans(),
                                           st.integers(0),
                                           st.integers(0)),
                                 max_size=MAX_PARTITION_OPERATIONS_COUNT)
+# triangles as (endpoint, base start, base end) with a non-degenerate
+# area; a coarse grid makes vertical and horizontal bases common
+triangle_coordinates = st.fractions(-4, 4, max_denominator=3)
+triangle_points = st.builds(Point, triangle_coordinates, triangle_coordinates)
+
+
+def is_non_degenerate(vertices: tuple[Point[Fraction], ...]) -> bool:
+    endpoint, start, end = vertices
+    return ((start.x - endpoint.x) * (end.y - endpoint.y)
+            != (start.y - endpoint.y) * (end.x - endpoint.x))
+
+
+triangle_vertices = st.tuples(triangle_points,
+                              triangle_points,
+                              triangle_points).filter(is_non_degenerate)
 # positions strictly inside a segment, as fractions of its length
 inner_fractions = st.fractions(0, 1, max_denominator=10).filter(
     lambda fraction: 0 < fraction < 1)

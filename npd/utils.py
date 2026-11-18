@@ -12,7 +12,6 @@ from gon.base import (EMPTY,
                       Contour,
                       Empty,
                       Multipolygon,
-                      Orientation,
                       Point,
                       Polygon,
                       Segment)
@@ -62,46 +61,29 @@ def inverse_shoelace(area: Fraction,
                      base_start: Point[Fraction],
                      base_end: Point[Fraction]) -> Point[Fraction]:
     """
-    Finds a point on the base line forming a triangle of the given area.
+    Finds the point on the base forming a triangle of the given area.
 
     The triangle is formed by the endpoint, the base start and the point.
-    :param area:
-    :param endpoint:
-    :param base_start:
-    :param base_end:
-    :return:
+    Its area grows linearly as the point moves from the base start to
+    the base end, up to the area of the triangle formed by the endpoint
+    and the whole base, so the point divides the base in the ratio of
+    the two areas. It lies strictly inside the base exactly when the
+    area is positive and less than that triangle's area; otherwise it
+    lies elsewhere on the base's line.
+    :param area: area of the triangle to form
+    :param endpoint: vertex of the triangle opposite the base
+    :param base_start: vertex of the triangle on the base
+    :param base_end: other end of the base
+    :return: the third vertex of the triangle, on the base's line
+    :raises ZeroDivisionError: if the endpoint lies on the base's line
     """
-    orientation = Contour([endpoint, base_start, base_end]).orientation
-    sign = 1 if orientation is Orientation.COUNTERCLOCKWISE else -1
-    if base_end.x - base_start.x == 0:
-        numerator = 2 * area + sign * (base_start.x * base_start.y
-                                       - endpoint.x * base_start.y)
-        denominator = sign * (base_start.x - endpoint.x)
-        y_coordinate = numerator / denominator
-        return Point(base_start.x, y_coordinate)
-    slope, intercept = slope_intercept(base_start, base_end)
-    x_diff = base_start.x - endpoint.x
-    numerator = 2 * area + sign * (base_start.x * endpoint.y
-                                   - endpoint.x * base_start.y
-                                   - intercept * x_diff)
-    denominator = sign * (endpoint.y - base_start.y + slope * x_diff)
-    x_coordinate = numerator / denominator
-    y_coordinate = slope * x_coordinate + intercept
-    return Point(x_coordinate, y_coordinate)
-
-
-def slope_intercept(start: Point[Fraction],
-                    end: Point[Fraction]) -> tuple[Fraction, Fraction]:
-    """
-    Calculates the slope and the intercept of the line through two points.
-
-    :param start:
-    :param end:
-    :return:
-    """
-    slope = (end.y - start.y) / (end.x - start.x)
-    intercept = end.y - slope * end.x
-    return slope, intercept
+    double_full_area = abs((base_start.x - endpoint.x)
+                           * (base_end.y - endpoint.y)
+                           - (base_start.y - endpoint.y)
+                           * (base_end.x - endpoint.x))
+    ratio = 2 * area / double_full_area
+    return Point(base_start.x + ratio * (base_end.x - base_start.x),
+                 base_start.y + ratio * (base_end.y - base_start.y))
 
 
 def robust_sqrt(fraction: Fraction) -> Fraction:
