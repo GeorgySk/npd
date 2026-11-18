@@ -568,14 +568,32 @@ def final_node_refinement(node_to_split: CachedPolygon,
                           neighbor: Chunk,
                           partition: Partition) -> None:
     """
-    Splits the node so that the chunk area meets the requirement exactly.
+    Cuts the node so that the chunk's area meets the requirement exactly.
 
-    :param node_to_split: triangle to be split
-    :param requirement: area requirement for this triangle
-    :param chunk: chunk the triangle belongs to
-    :param neighbor: neighbor chunk touching the triangle
-    :param partition: partition
+    Cuts the node from the pivot ``find_pivot`` picks, so that the part
+    staying in the chunk has the area the chunk lacks without the node,
+    and moves the other part to the neighbor. Callers have just moved
+    the node into the chunk, past the requirement: ``readjust`` moved it
+    out, fell below the requirement and moved it back; ``add_triangles``
+    moved it in and rose above it. The chunk stays connected if the node
+    either has a neighbor in it and isn't an articulation triangle, or
+    joined it from outside; the moved part touches the neighbor if the
+    node does.
+    :param node_to_split: triangle of the chunk to cut
+    :param requirement: required area of the chunk
+    :param chunk: chunk the triangle belongs to, updated in place
+    :param neighbor: chunk touching the triangle, receiving the cut-off
+    part
+    :param partition: partition the chunks belong to
+    :raises ValueError: if the node isn't in the chunk, or the
+    requirement isn't strictly between the chunk's area without the node
+    and with it
     """
+    if node_to_split not in chunk.triangles:
+        raise ValueError("The node must belong to the chunk")
+    if not chunk.area - node_to_split.area < requirement < chunk.area:
+        raise ValueError("The requirement must be strictly between the "
+                         "chunk's area without the node and with it")
     pivot_index = find_pivot(node_to_split,
                              partition=partition,
                              chunk=chunk)
