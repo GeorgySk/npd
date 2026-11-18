@@ -387,46 +387,46 @@ def border_edge_triangle(chunk: Chunk,
                          neighbor: Chunk,
                          partition: Partition) -> CachedPolygon:
     """
-    Finds a border-edge triangle in the chunk.
+    Finds a triangle of the chunk to split so that moves can continue.
 
-    We call "border-edge" triangles those triangles that can be split
-    so that the algorithm would be able to find a way to continue
-    reassigning triangles from one chunk to another.
-    These border-edge triangles have the following properties:
-    1) they have exactly 1 neighbor triangle N that belongs to neighbor
-    chunk and 2 neighbor triangles that belong to the current chunk
-    2) there is not more than 1 triangle sharing any vertex with N
-    that is adjacent to any triangle from the current chunk
+    Used when no triangle can be moved between the chunks without
+    disconnecting one of them. Returns the first triangle T of the chunk
+    such that:
+    1) T has exactly one neighbor triangle N in the neighbor chunk and
+    the other two in the chunk itself (so no edge of T is on the
+    polygon's border);
+    2) at most one triangle of the neighbor chunk other than N shares a
+    vertex with T and touches a chunk other than the neighbor (that is
+    the given chunk: there are only two chunks when this is called).
+    :param chunk: chunk to find the triangle in
+    :param neighbor: neighbor chunk
+    :param partition: partition the chunks belong to
+    :return: the first triangle of the chunk meeting both conditions
+    :raises ValueError: if no triangle of the chunk meets them
     """
     for triangle in chunk.triangles:
         triangle_neighbors = partition.triangle_neighbors(triangle)
-        neighbor_triangles_count = sum(
-            triangle_neighbor in neighbor.triangles
-            for triangle_neighbor in triangle_neighbors)
-        chunk_triangles_count = sum(
+        outside_neighbors = [triangle_neighbor
+                             for triangle_neighbor in triangle_neighbors
+                             if triangle_neighbor in neighbor.triangles]
+        inside_neighbors_count = sum(
             triangle_neighbor in chunk.triangles
             for triangle_neighbor in triangle_neighbors)
-        if (neighbor_triangles_count != 1
-                or chunk_triangles_count != TRIANGLE_SIDES_COUNT - 1):
+        if (len(outside_neighbors) != 1
+                or inside_neighbors_count != TRIANGLE_SIDES_COUNT - 1):
             continue
-        triangle_neighbor_triangle = next(
-            triangle_neighbor
-            for triangle_neighbor in triangle_neighbors
-            if triangle_neighbor in neighbor.triangles)
+        (outside_neighbor,) = outside_neighbors
         vertices = triangle.border.vertices
-        triangles_sharing_vertices = {
+        touching_triangles = [
             neighbor_triangle for neighbor_triangle in neighbor.triangles
-            if neighbor_triangle != triangle_neighbor_triangle
+            if neighbor_triangle is not outside_neighbor
             and any(vertex in vertices
-                    for vertex in neighbor_triangle.border.vertices)}
-        adjacent_triangles = {
-            neighbor_triangle
-            for neighbor_triangle in triangles_sharing_vertices
-            if partition.is_touching_other_chunk(neighbor_triangle,
-                                                 this_chunk=neighbor)}
-        draw(*partition.chunk_map, triangle_neighbor_triangle,
+                    for vertex in neighbor_triangle.border.vertices)
+            and partition.is_touching_other_chunk(neighbor_triangle,
+                                                  this_chunk=neighbor)]
+        draw(*partition.chunk_map, outside_neighbor,
              blue=chunk, red=triangle)
-        if len(adjacent_triangles) <= 1:
+        if len(touching_triangles) <= 1:
             return triangle
     raise ValueError("Couldn't find a triangle to split")
 
