@@ -10,22 +10,20 @@ from tests.strategies.base import (polygons,
                                    requirements_fractions,
                                    steiner_points_counts)
 from tests.utils import (HOLED_SQUARE,
-                         NON_CONVEX_POLYGONS)
+                         NON_CONVEX_POLYGONS,
+                         to_polygon)
 
 
 def assert_valid_split(polygon: Polygon[Fraction],
                        requirements: list[Fraction],
                        parts: list[Polygon[Fraction]]) -> None:
     assert all(isinstance(part, Polygon) for part in parts)
-    # `split` cuts off the requirements in increasing order.
-    assert [part.area for part in parts] == sorted(requirements)
+    assert [part.area for part in parts] == requirements
     # With the areas adding up, an equal union means the parts don't
     # overlap.
     assert unite(parts) == polygon
 
 
-# Known failure: the digits limit for integer string conversion (see
-# CLAUDE.md).
 @given(polygon=polygons,
        requirements_fractions=requirements_fractions,
        steiner_points_count=steiner_points_counts)
@@ -71,6 +69,18 @@ def test_remainder_with_hole_touching_border() -> None:
                   steiner_points_count=4)
 
     assert_valid_split(HOLED_SQUARE, requirements, parts)
+
+
+def test_parts_in_requirements_order() -> None:
+    # The smallest requirement is cut off first, but comes back second.
+    square = to_polygon([(0, 0), (2, 0), (2, 2), (0, 2)])
+    requirements = [Fraction(3), Fraction(1)]
+
+    parts = split(square,
+                  requirements=requirements,
+                  steiner_points_count=4)
+
+    assert_valid_split(square, requirements, parts)
 
 
 @given(polygon=polygons,

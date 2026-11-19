@@ -24,26 +24,32 @@ def split(polygon: Polygon[Fraction],
     """
     Splits a polygon into N parts where N is the number of requirements.
 
+    Cuts off one part at a time with ``split_into_two``, smallest
+    requirement first: the smallest of the requirements left is at most
+    half of the remainder's area, as ``split_into_two`` needs. The last
+    remainder is the part for the largest requirement.
     :param polygon: input polygon, with or without holes
-    :param requirements: list of area requirements (its sum must be
-    equal to the area of the input polygon)
+    :param requirements: positive area requirements adding up to the
+    polygon's area
     :param steiner_points_count: approximate number of Steiner points to
     triangulate each non-convex polygon with (see ``split_into_two``);
     larger values take more time and give more compact parts
-    :return: a list of resulting polygon parts
+    :return: the parts, the i-th with the i-th requirement's area
+    :raises ValueError: if the requirements don't add up to the area or
+    aren't positive
     """
-    if not sum(requirements) == polygon.area:
+    if sum(requirements) != polygon.area:
         raise ValueError("Sum of requirements must be equal to polygon area")
-    result = []
+    order = sorted(range(len(requirements)), key=requirements.__getitem__)
+    parts: list[Polygon[Fraction]] = [polygon] * len(requirements)
     remainder = polygon
-    for requirement in sorted(requirements)[:-1]:
-        part, remainder = split_into_two(
+    for index in order[:-1]:
+        parts[index], remainder = split_into_two(
             remainder,
-            requirement=requirement,
+            requirement=requirements[index],
             steiner_points_count=steiner_points_count)
-        result.append(part)
-    result.append(remainder)
-    return result
+    parts[order[-1]] = remainder
+    return parts
 
 
 def split_into_two(polygon: Polygon[Fraction],
