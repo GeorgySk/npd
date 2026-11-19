@@ -382,7 +382,7 @@ class Partition:
 
         :param triangle: any triangle from the triangular map
         :param this_chunk: chunk this triangle belongs to
-        :return: True if the condition satisfies, False otherwise
+        :return: True if a neighbor of the triangle isn't in the chunk
         """
         return any(neighbor not in this_chunk.triangles
                    for neighbor in self.triangle_neighbors(triangle))
