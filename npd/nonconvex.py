@@ -374,21 +374,30 @@ def divide_border_edge_triangle(chunk: Chunk,
                                 neighbor: Chunk,
                                 partition: Partition) -> None:
     """
-    Splits a border-edge triangle of the chunk into two triangles.
+    Cuts a triangle of the chunk touching the neighbor so that it can move.
 
-    :param chunk: chunk where a node on the border will be found
-    that will be split
-    :param neighbor: neighbor chunk
-    :param partition: partition
+    Used by ``readjust`` and ``add_triangles`` when no triangle of the
+    chunk can be moved without disconnecting it. Takes the triangle T
+    from ``border_edge_triangle`` and its neighbor C in the chunk from
+    ``edge_neighbor``, and cuts T from its vertex opposite their shared
+    edge to that edge's midpoint (``divide`` cuts C there too). The half
+    of T with T's edge to the neighbor touches the neighbor and can be
+    moved, as the other half and C's halves keep connected everything T
+    connected (see ``edge_neighbor``).
+    :param chunk: chunk to cut a triangle of
+    :param neighbor: chunk the triangle should touch
+    :param partition: partition the chunks belong to, updated in place
+    :raises ValueError: if ``border_edge_triangle`` finds no triangle
     """
-    leaf = border_edge_triangle(chunk, neighbor, partition)
-    neighbor_to_split = edge_neighbor(leaf, chunk, partition)
-    edge = partition.edge_between_triangles(leaf, neighbor_to_split)
+    triangle = border_edge_triangle(chunk, neighbor, partition)
+    neighbor_to_split = edge_neighbor(triangle, chunk, partition)
+    edge = partition.edge_between_triangles(triangle, neighbor_to_split)
     pivot_index = next(index
-                       for index, vertex in enumerate(leaf.border.vertices)
+                       for index, vertex in enumerate(
+                           triangle.border.vertices)
                        if vertex not in edge)
     divide(partition,
-           node=leaf,
+           node=triangle,
            pivot_index=pivot_index,
            new_vertex=edge.centroid,
            chunk=chunk)

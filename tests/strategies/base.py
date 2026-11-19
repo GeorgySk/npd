@@ -119,6 +119,9 @@ triangle_cuts = st.tuples(st.integers(0),
 # (index of the refinement setup, taken modulo the count, position of
 # the requirement within the range the node's area allows)
 refinements = st.tuples(st.integers(0), inner_fractions)
+# (index of the chunk to keep as in `split`, taken modulo the count,
+# whether to work in its remainder instead)
+two_chunks_choices = st.tuples(st.integers(0), st.booleans())
 # requirements as fractions of the area above which `nonconvex.split` can
 # join down to two chunks, neither of them satisfactory
 high_requirement_factors = st.fractions(Fraction(3, 4), Fraction(1),
