@@ -20,16 +20,6 @@ TriangularMap = dict["CachedPolygon",
                      dict[Segment[Fraction], "CachedPolygon | None"]]
 
 
-@dataclass
-class ConvexPartition:
-    """Domain with its countersegment, side vertices and area difference."""  # noqa: D204
-    domain: Segment[Fraction]
-    countersegment: Segment[Fraction]
-    right_vertices: list[Point[Fraction]]
-    left_vertices: list[Point[Fraction]]
-    area_difference: Fraction
-
-
 class CachedPolygon(Polygon):  # type: ignore[misc]
     """Polygon with hashed perimeter."""
 

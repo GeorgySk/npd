@@ -50,12 +50,6 @@ def distance(start: Point[Fraction], end: Point[Fraction]) -> float:
     return math.hypot(start.x - end.x, start.y - end.y)
 
 
-def to_segments(vertices: list[Point[Fraction]]
-                ) -> Iterator[Segment[Fraction]]:
-    """Returns an iterator over consecutive segments on the points."""
-    yield from map(Segment, vertices, vertices[1:])
-
-
 def inverse_shoelace(area: Fraction,
                      endpoint: Point[Fraction],
                      base_start: Point[Fraction],
@@ -84,17 +78,6 @@ def inverse_shoelace(area: Fraction,
     ratio = 2 * area / double_full_area
     return Point(base_start.x + ratio * (base_end.x - base_start.x),
                  base_start.y + ratio * (base_end.y - base_start.y))
-
-
-def robust_sqrt(fraction: Fraction) -> Fraction:
-    """
-    Calculates the square root of a fraction using decimals.
-
-    :param fraction:
-    :return:
-    """
-    return Fraction((fraction.numerator
-                     / Decimal(fraction.denominator)).sqrt())
 
 
 def unite(polygons: Iterable[Polygon[Fraction]]
