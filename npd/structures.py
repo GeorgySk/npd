@@ -402,8 +402,13 @@ class Partition:
         """
         Yields the border triangles that can be moved from the chunk.
 
-        :return: iterator over triangles of the given chunk that can be
-        moved without causing discontinuity
+        These are the chunk's triangles that touch another chunk and
+        aren't articulation triangles of it, so moving one leaves the
+        chunk connected. They come in the order of ``chunk.triangles``,
+        which decides ties in ``nonconvex``. A chunk's only triangle
+        counts as movable, although moving it empties the chunk.
+        :param chunk: any chunk from the partition
+        :return: iterator over the movable triangles
         """
         yield from (triangle for triangle in self.border_triangles(chunk)
                     if not self.is_articulation_triangle(triangle,
