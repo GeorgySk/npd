@@ -20,14 +20,14 @@ from tests.config import (MAX_COORDINATE,
                           MAX_HOLES_SIZE,
                           MAX_HOLE_SIZE,
                           MAX_POLYGON_SIZE,
-                          MAX_REQRUIREMENTS_COUNT,
+                          MAX_REQUIREMENTS_COUNT,
                           MAX_REQUIREMENT_FRACTION,
                           MAX_STEINER_POINTS_COUNT,
                           MIN_COORDINATE,
                           MIN_HOLES_SIZE,
                           MIN_HOLE_SIZE,
                           MIN_POLYGON_SIZE,
-                          MIN_REQRUIREMENTS_COUNT,
+                          MIN_REQUIREMENTS_COUNT,
                           MIN_REQUIREMENT_FRACTION,
                           MIN_STEINER_POINTS_COUNT)
 
@@ -244,8 +244,8 @@ def to_partitions(sum_: Fraction,  # noqa: C901
             .filter(is_valid))
 
 
-requirements_fractions = st.integers(MIN_REQRUIREMENTS_COUNT,
-                                     MAX_REQRUIREMENTS_COUNT
+requirements_fractions = st.integers(MIN_REQUIREMENTS_COUNT,
+                                     MAX_REQUIREMENTS_COUNT
                                      ).flatmap(
     lambda n: to_partitions(Fraction(1),
                             base=st.fractions(),
