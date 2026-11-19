@@ -127,6 +127,23 @@ U_SHAPE = to_polygon([(0, 0), (3, 0), (3, 2), (2, 2),
 HOLED_SQUARE = to_polygon([(0, 0), (3, 0), (3, 3), (0, 3)],
                           [(1, 1), (1, 2), (2, 2), (2, 1)])
 NON_CONVEX_POLYGONS = [L_SHAPE, U_SHAPE, HOLED_SQUARE]
+# polygons with a vertex of one contour strictly inside an edge of
+# another, with that vertex
+TOUCHING_HOLES_POLYGONS = [
+    # a hole touching the border
+    (to_polygon([(0, 0), (3, 0), (3, 3), (0, 3)],
+                [(1, 1), (1, 2), (3, Fraction(3, 2))]),
+     to_point(3, Fraction(3, 2))),
+    # the border touching a hole
+    (to_polygon([(0, 0), (4, 0), (2, 2), (4, 4), (0, 4)],
+                [(1, 1), (2, 1), (2, 3), (1, 3)]),
+     to_point(2, 2)),
+    # a hole touching another hole
+    (to_polygon([(0, 0), (4, 0), (4, 4), (0, 4)],
+                [(1, 1), (2, 1), (2, 3), (1, 3)],
+                [(2, 2), (3, 1), (3, 3)]),
+     to_point(2, 2)),
+]
 
 
 def to_inner_triangle_partition() -> tuple[Partition,

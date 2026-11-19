@@ -13,7 +13,8 @@ from gon.base import (Contour,
 from gon.hints import Scalar
 from ground.base import get_context
 
-from npd.utils import fast_length
+from npd.utils import (fast_length,
+                       touching_points)
 
 SharedEdgesPerNeighbor = dict["Chunk", frozenset[Segment[Fraction]]]
 TriangularMap = dict["CachedPolygon",
@@ -75,7 +76,7 @@ class Partition:
         """O(n²)."""
         triangulation = Triangulation.constrained_delaunay(
             polygon,
-            extra_points=extra_points,
+            extra_points=[*extra_points, *touching_points(polygon)],
             context=get_context())
         triangles = list(map(CachedPolygon, triangulation.triangles()))
         self.triangular_map = to_triangular_map(triangles)

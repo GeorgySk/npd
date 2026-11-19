@@ -50,6 +50,30 @@ def distance(start: Point[Fraction], end: Point[Fraction]) -> float:
     return math.hypot(start.x - end.x, start.y - end.y)
 
 
+def touching_points(polygon: Polygon[Fraction]) -> list[Point[Fraction]]:
+    """
+    Finds vertices lying strictly inside an edge of another contour.
+
+    These are where a hole touches the border or another hole. gon
+    allows such polygons, but sect's constrained Delaunay triangulation
+    can't handle them: it returns no triangles or raises. Passed to it as
+    extra points, they get inserted into the edges they lie on, which
+    fixes that.
+
+    :param polygon: input polygon
+    :return: distinct touching points
+    """
+    contours = [polygon.border, *polygon.holes]
+    return list(dict.fromkeys(
+        vertex
+        for contour in contours
+        for other in contours
+        if other is not contour
+        for edge in other.segments
+        for vertex in contour.vertices
+        if vertex in edge and vertex not in (edge.start, edge.end)))
+
+
 def inverse_shoelace(area: Fraction,
                      endpoint: Point[Fraction],
                      base_start: Point[Fraction],

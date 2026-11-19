@@ -13,6 +13,7 @@ from hypothesis_geometry import planar
 from npd.npd import steiner_points
 from npd.structures import (CachedPolygon,
                             to_triangular_map)
+from npd.utils import touching_points
 
 from tests.config import (MAX_COORDINATE,
                           MAX_DENOMINATOR,
@@ -70,7 +71,8 @@ def to_polygon_with_triangles(polygon: Polygon[Fraction],
     """Triangulates the polygon the same way `Partition` does."""
     triangulation = Triangulation.constrained_delaunay(
         polygon,
-        extra_points=steiner_points(polygon, delta),
+        extra_points=[*steiner_points(polygon, delta),
+                      *touching_points(polygon)],
         context=get_context())
     return polygon, list(map(CachedPolygon, triangulation.triangles()))
 
