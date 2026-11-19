@@ -5,9 +5,9 @@ from gon.base import Polygon
 from hypothesis import given
 
 from npd.npd import split_into_two
-from tests.strategies.base import (above_half_requirement_factors,
-                                   half_requirement_factors,
-                                   polygons,
+from tests.strategies.base import (half_requirement_factors,
+                                   invalid_half_requirement_factors,
+                                   invalid_steiner_points_counts,
                                    steiner_points_counts,
                                    varied_polygons)
 from tests.utils import NON_CONVEX_POLYGONS
@@ -58,13 +58,25 @@ def test_non_convex(polygon: Polygon[Fraction],
     assert_valid_split(polygon, requirement, part, other)
 
 
-@given(polygon=polygons,
-       factor=above_half_requirement_factors,
+@given(polygon=varied_polygons,
+       factor=invalid_half_requirement_factors,
        steiner_points_count=steiner_points_counts)
-def test_requirement_above_half(polygon: Polygon[Fraction],
-                                factor: Fraction,
-                                steiner_points_count: int) -> None:
-    with pytest.raises(ValueError, match="half of the area"):
+def test_invalid_requirement(polygon: Polygon[Fraction],
+                             factor: Fraction,
+                             steiner_points_count: int) -> None:
+    with pytest.raises(ValueError, match="positive and at most half"):
+        split_into_two(polygon,
+                       requirement=polygon.area * factor,
+                       steiner_points_count=steiner_points_count)
+
+
+@given(polygon=varied_polygons,
+       factor=half_requirement_factors,
+       steiner_points_count=invalid_steiner_points_counts)
+def test_invalid_steiner_points_count(polygon: Polygon[Fraction],
+                                      factor: Fraction,
+                                      steiner_points_count: int) -> None:
+    with pytest.raises(ValueError, match="Steiner points count"):
         split_into_two(polygon,
                        requirement=polygon.area * factor,
                        steiner_points_count=steiner_points_count)

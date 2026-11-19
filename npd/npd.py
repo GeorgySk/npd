@@ -27,10 +27,9 @@ def split(polygon: Polygon[Fraction],
     :param polygon: input polygon, with or without holes
     :param requirements: list of area requirements (its sum must be
     equal to the area of the input polygon)
-    :param steiner_points_count: approximate number of steiner points
-    that will be used for splitting. Larger values will result in less
-    time to compute but worse results in terms of compactness of the
-    resulting parts
+    :param steiner_points_count: approximate number of Steiner points to
+    triangulate each non-convex polygon with (see ``split_into_two``);
+    larger values take more time and give more compact parts
     :return: a list of resulting polygon parts
     """
     if not sum(requirements) == polygon.area:
@@ -55,22 +54,36 @@ def split_into_two(polygon: Polygon[Fraction],
     """
     Splits a polygon into two parts according to the area requirement.
 
+    A convex polygon is cut by a single segment with ``pdan``, keeping
+    the part with the least perimeter; any other polygon is triangulated
+    with Steiner points spaced ``sqrt(area / steiner_points_count)``
+    apart and split by ``nonconvex.split``. Both parts come out as
+    single polygons: ``nonconvex.split``'s parts are connected through
+    shared edges, so their triangles unite into one polygon each.
     :param polygon: input polygon
-    :param requirement: input area requirement (should be less or
-    equal than the half of the polygon's area)
-    :param steiner_points_count: an approximate number of steiner points
-    that will be used for splitting. Larger values will result in less
-    time to compute but worse results in terms of compactness of the
-    resulting parts
+    :param requirement: area of the part, positive and at most half of
+    the polygon's area
+    :param steiner_points_count: approximate number of Steiner points to
+    triangulate a non-convex polygon with; larger values take more time
+    and give more compact parts
     :return: a polygon part with the specified area and the remaining
     part
+    :raises ValueError: if the requirement isn't positive and at most
+    half of the area, or the Steiner points count isn't positive
     """
-    if requirement > Fraction(1, 2) * polygon.area:
-        raise ValueError("Requirement can't be larger than half of the area.")
+    if not 0 < requirement <= Fraction(1, 2) * polygon.area:
+        raise ValueError("Requirement must be positive and at most half "
+                         "of the area.")
+    if steiner_points_count <= 0:
+        raise ValueError("Steiner points count must be positive.")
     if polygon.is_convex:
-        part, other = minimizing_split(contour=polygon.border,
-                                       area_requirement=requirement,
-                                       key=lambda x, _: x.length)
+        # gon's exact lengths are symbolic: slower, and comparing them
+        # converts ever larger integers to strings, which hits Python's
+        # digits limit over repeated splits.
+        part, other = minimizing_split(
+            contour=polygon.border,
+            area_requirement=requirement,
+            key=lambda contour, _: fast_length(contour))
         return Polygon(part), Polygon(other)
     delta = Fraction(math.sqrt(polygon.area / steiner_points_count))
     partition = to_partition(polygon, delta=delta)
