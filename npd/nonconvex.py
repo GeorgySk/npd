@@ -7,7 +7,6 @@ from gon.base import (Contour,
                       Point,
                       Segment)
 
-from npd.draw import draw
 from npd.structures import (CachedPolygon,
                             Chunk,
                             Partition)
@@ -153,8 +152,6 @@ def join_pairs(partition: Partition) -> None:
                                                              neighbor))
         del unmerged[source]
         del unmerged[best_target]
-        if len(source.triangles) > PLOT_STARTING_NUMBER:
-            draw(*partition.chunk_map, source, best_target)
         partition.unite(source, best_target)
 
 
@@ -276,7 +273,6 @@ def most_compact_pair(partition: Partition) -> tuple[Chunk, Chunk]:
     best_chunk = max((chunk for chunk in partition.chunk_map
                       if not partition.is_articulation_chunk(chunk)),
                      key=score)
-    draw(*partition.chunk_map, red=best_chunk)
     return best_chunk, collect_remainder(best_chunk, partition)
 
 
@@ -335,7 +331,6 @@ def readjust(chunk: Chunk,
     """
     if not requirement < chunk.area:
         raise ValueError("The requirement must be below the chunk's area")
-    draw(*partition.chunk_map, red=chunk)
     set_aside: dict[CachedPolygon, None] = {}
     while True:
         # Set-aside triangles can have been moved out of the chunk since.
@@ -356,13 +351,11 @@ def readjust(chunk: Chunk,
             set_aside = {}
             divide_border_edge_triangle(chunk, neighbor, partition)
             border_triangle = next(partition.movable_triangles(chunk))
-            draw(*partition.chunk_map, blue=chunk)
 
         partition.move(border_triangle, source=chunk, target=neighbor)
         for neighbor_triangle in partition.triangle_neighbors(border_triangle):
             if neighbor_triangle in chunk.triangles:
                 set_aside.setdefault(neighbor_triangle)
-        draw(*partition.chunk_map, blue=chunk)
         if chunk.area == requirement:
             return chunk, neighbor
         if chunk.area < requirement:
@@ -442,8 +435,6 @@ def border_edge_triangle(chunk: Chunk,
                     for vertex in neighbor_triangle.border.vertices)
             and partition.is_touching_other_chunk(neighbor_triangle,
                                                   this_chunk=neighbor)]
-        draw(*partition.chunk_map, outside_neighbor,
-             blue=chunk, red=triangle)
         if len(touching_triangles) <= 1:
             return triangle
     raise ValueError("Couldn't find a triangle to split")
@@ -485,7 +476,6 @@ def edge_neighbor(triangle: CachedPolygon,
                                                       this_chunk=chunk)
                     for neighbor_neighbor in neighbor_neighbors)
 
-        draw(*partition.chunk_map, blue=chunk, red=neighbor)
         if count == 1:
             return neighbor
     return chunk_neighbors[0]
@@ -627,15 +617,11 @@ def final_node_refinement(node_to_split: CachedPolygon,
                              partition=partition,
                              chunk=chunk)
     vertices = node_to_split.border.vertices
-    draw(*partition.chunk_map, red=[node_to_split, vertices[pivot_index]],
-         blue=chunk)
     new_vertex = inverse_shoelace(
         requirement + node_to_split.area - chunk.area,
         endpoint=vertices[pivot_index],
         base_start=vertices[pivot_index - 1],
         base_end=vertices[pivot_index - 2])
-    draw(*partition.chunk_map,
-         red=[node_to_split, vertices[pivot_index]], blue=[chunk, new_vertex])
     _, right = divide(partition,
                       node=node_to_split,
                       pivot_index=pivot_index,
@@ -715,7 +701,6 @@ def add_triangles(chunk: Chunk,
     if not chunk.area < requirement < chunk.area + neighbor.area:
         raise ValueError("The requirement must be strictly between the "
                          "chunk's area and the area of both chunks")
-    draw(*partition.chunk_map, red=chunk)
     while True:
         triangle = next(partition.movable_triangles(neighbor), None)
         if triangle is None:
