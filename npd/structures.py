@@ -245,10 +245,15 @@ class Partition:
         :param triangle: triangle in the triangular map
         :param other: neighbor of the triangle
         :return: segment that the given triangles share
+        :raises ValueError: if the triangles don't share an edge
         """
-        return next(edge
-                    for edge, neighbor in self.triangular_map[triangle].items()
-                    if neighbor == other)
+        edge = next((edge
+                     for edge, neighbor in self.triangular_map[
+                         triangle].items()
+                     if neighbor is other), None)
+        if edge is None:
+            raise ValueError("The triangles don't share an edge")
+        return edge
 
     def unite(self,
               chunk: Chunk,
