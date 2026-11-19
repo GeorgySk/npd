@@ -1,12 +1,9 @@
 """Various utility functions."""
 import math
-from collections.abc import (Iterable,
-                             Iterator)
-from decimal import Decimal
+from collections.abc import Iterable
 from fractions import Fraction
 from functools import reduce
 from operator import or_
-from typing import TypeVar
 
 from gon.base import (EMPTY,
                       Contour,
@@ -15,8 +12,6 @@ from gon.base import (EMPTY,
                       Point,
                       Polygon,
                       Segment)
-
-T = TypeVar("T")
 
 
 def fast_length(geometry: Segment[Fraction] | Contour[Fraction]) -> float:
