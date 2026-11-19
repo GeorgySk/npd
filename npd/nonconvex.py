@@ -469,14 +469,11 @@ def edge_neighbor(triangle: CachedPolygon,
     if not chunk_neighbors:
         raise ValueError("Couldn't find edge neighbor.")
     for neighbor in chunk_neighbors:
-        neighbor_neighbors = partition.triangle_neighbors(neighbor)
-        # `triangle` is among them and touches another chunk, so a count
-        # of 1 means that none of the others does.
-        count = sum(partition.is_touching_other_chunk(neighbor_neighbor,
-                                                      this_chunk=chunk)
-                    for neighbor_neighbor in neighbor_neighbors)
-
-        if count == 1:
+        if not any(
+                other not in chunk.triangles
+                or partition.is_touching_other_chunk(other, this_chunk=chunk)
+                for other in partition.triangle_neighbors(neighbor)
+                if other is not triangle):
             return neighbor
     return chunk_neighbors[0]
 
