@@ -106,8 +106,27 @@ def to_strip_partition() -> tuple[Partition, list[Chunk]]:
                        for x in range(3)]
 
 
-def to_point(x: int, y: int) -> Point[Fraction]:
+def to_point(x: Fraction | int, y: Fraction | int) -> Point[Fraction]:
     return Point(Fraction(x), Fraction(y))
+
+
+Coordinates = tuple[Fraction | int, Fraction | int]
+
+
+def to_polygon(vertices: list[Coordinates],
+               *holes: list[Coordinates]) -> Polygon[Fraction]:
+    def to_contour(points: list[Coordinates]) -> Contour[Fraction]:
+        return Contour([to_point(x, y) for x, y in points])
+
+    return Polygon(to_contour(vertices), [to_contour(hole) for hole in holes])
+
+
+L_SHAPE = to_polygon([(0, 0), (2, 0), (2, 1), (1, 1), (1, 2), (0, 2)])
+U_SHAPE = to_polygon([(0, 0), (3, 0), (3, 2), (2, 2),
+                      (2, 1), (1, 1), (1, 2), (0, 2)])
+HOLED_SQUARE = to_polygon([(0, 0), (3, 0), (3, 3), (0, 3)],
+                          [(1, 1), (1, 2), (2, 2), (2, 1)])
+NON_CONVEX_POLYGONS = [L_SHAPE, U_SHAPE, HOLED_SQUARE]
 
 
 def to_inner_triangle_partition() -> tuple[Partition,

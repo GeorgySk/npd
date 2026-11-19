@@ -1,9 +1,7 @@
 from fractions import Fraction
 
 import pytest
-from gon.base import (Contour,
-                      Point,
-                      Polygon)
+from gon.base import Polygon
 from hypothesis import given
 
 from npd.npd import split_into_two
@@ -12,21 +10,7 @@ from tests.strategies.base import (above_half_requirement_factors,
                                    polygons,
                                    steiner_points_counts,
                                    varied_polygons)
-
-
-def to_polygon(vertices: list[tuple[int, int]],
-               *holes: list[tuple[int, int]]) -> Polygon[Fraction]:
-    def to_contour(points: list[tuple[int, int]]) -> Contour[Fraction]:
-        return Contour([Point(Fraction(x), Fraction(y)) for x, y in points])
-
-    return Polygon(to_contour(vertices), [to_contour(hole) for hole in holes])
-
-
-L_SHAPE = to_polygon([(0, 0), (2, 0), (2, 1), (1, 1), (1, 2), (0, 2)])
-U_SHAPE = to_polygon([(0, 0), (3, 0), (3, 2), (2, 2),
-                      (2, 1), (1, 1), (1, 2), (0, 2)])
-HOLED_SQUARE = to_polygon([(0, 0), (3, 0), (3, 3), (0, 3)],
-                          [(1, 1), (1, 2), (2, 2), (2, 1)])
+from tests.utils import NON_CONVEX_POLYGONS
 
 
 def assert_valid_split(polygon: Polygon[Fraction],
@@ -57,7 +41,7 @@ def test_split(polygon: Polygon[Fraction],
     assert_valid_split(polygon, requirement, part, other)
 
 
-@pytest.mark.parametrize("polygon", [L_SHAPE, U_SHAPE, HOLED_SQUARE])
+@pytest.mark.parametrize("polygon", NON_CONVEX_POLYGONS)
 @pytest.mark.parametrize("factor", [Fraction(1, 10),
                                     Fraction(1, 3),
                                     Fraction(1, 2)])
