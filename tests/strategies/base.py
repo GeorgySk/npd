@@ -125,6 +125,14 @@ high_requirement_factors = st.fractions(Fraction(3, 4), Fraction(1),
 # requirements as fractions of the area that `nonconvex.split` accepts
 requirement_factors = st.fractions(0, 1, max_denominator=100).filter(
     lambda factor: 0 < factor < 1)
+# requirements as fractions of the area that `split_into_two` accepts
+half_requirement_factors = st.fractions(0, Fraction(1, 2),
+                                        max_denominator=100).filter(
+    lambda factor: factor > 0)
+# requirements as fractions of the area above the half `split_into_two`
+# allows
+above_half_requirement_factors = st.fractions(Fraction(1, 2), 1).filter(
+    lambda factor: factor > Fraction(1, 2))
 # requirements as fractions of the area that `nonconvex.split` rejects
 invalid_requirement_factors = (st.fractions(max_value=0)
                                | st.fractions(min_value=1))
