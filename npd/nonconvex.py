@@ -2,13 +2,11 @@
 import logging
 from fractions import Fraction
 from itertools import chain
-from typing import cast
 
 from gon.base import (Contour,
                       Point,
                       Segment)
 
-from npd.draw import draw
 from npd.structures import (CachedPolygon,
                             Chunk,
                             Partition)
@@ -31,11 +29,31 @@ def split(partition: Partition,
     """
     Splits the partition into a chunk of the required area and the rest.
 
-    :param partition: partition of the polygon, updated in-place
+    Joins chunks in rounds (``join_pairs``, then ``swap_leaves`` once the
+    smallest chunk is big enough) until one is satisfactory (see
+    ``is_satisfactory_area``) or two are left, joins the remaining small
+    chunks (``join_small_chunks``), picks a chunk and unites the rest
+    into its remainder (``most_compact_pair``), then shrinks or grows the
+    chunk to the required area exactly (``readjust``,
+    ``add_triangles``). Both parts come out connected.
+    :param partition: partition of the polygon, updated in-place; left
+    with the two parts as its only chunks
     :param requirement: area of the chunk to split off
     :return: the chunk with the required area and the remainder chunk
+    :raises ValueError: if the requirement isn't positive and less than
+    the partition's total area, or the partition is a single triangle
     """
-    while not is_satisfactory_chunk_found(partition, requirement=requirement):
+    if not 0 < requirement < partition.total_area:
+        raise ValueError("Requirement must be positive and less than "
+                         "the partition's total area.")
+    if len(partition.triangular_map) < PARTS_COUNT:
+        raise ValueError("The partition must have at least two triangles")
+    # Joining stops at two chunks, even if neither is satisfactory (only
+    # possible for requirements above 3/4 of the total area): the steps
+    # below need a chunk and a remainder.
+    while (len(partition.chunk_map) > PARTS_COUNT
+           and not is_satisfactory_chunk_found(partition,
+                                               requirement=requirement)):
         join_pairs(partition)
         min_chunk_size = min(len(chunk.triangles)
                              for chunk in partition.chunk_map)
@@ -44,15 +62,15 @@ def split(partition: Partition,
     join_small_chunks(partition, requirement=requirement)
     chunk, remainder = most_compact_pair(partition)
     if chunk.area > requirement:
-        chunk, remainder = readjust(chunk,
-                                    remainder,
-                                    requirement=requirement,
-                                    partition=partition)
+        readjust(chunk,
+                 remainder,
+                 requirement=requirement,
+                 partition=partition)
     elif chunk.area < requirement:
-        chunk, remainder = add_triangles(chunk,
-                                         remainder,
-                                         requirement=requirement,
-                                         partition=partition)
+        add_triangles(chunk,
+                      remainder,
+                      requirement=requirement,
+                      partition=partition)
     return chunk, remainder
 
 
@@ -60,7 +78,9 @@ def is_satisfactory_chunk_found(partition: Partition,
                                 *,
                                 requirement: Fraction) -> bool:
     """
-    Checks if any chunk in the partition satisfies the area requirement.
+    Checks if any chunk is large enough to stop joining chunks.
+
+    See ``is_satisfactory_area`` for when a chunk is large enough.
 
     :param partition: input partition
     :param requirement: input area requirement
@@ -74,84 +94,93 @@ def is_satisfactory_area(area: Fraction,
                          *,
                          requirement: Fraction) -> bool:
     """
-    Checks if the area is close enough to the area requirement.
+    Checks if chunks should stop being joined to approach the requirement.
 
-    :param area: area of a polygon
+    Joining pairs of chunks roughly doubles their area. It's worth
+    stopping once the next doubling would overshoot the requirement and
+    leave a gap at least as large as the current one::
+
+        |requirement - area| <= |2 * area - requirement|
+        and 2 * area >= requirement
+
+    If ``area >= requirement``, this always holds, since doubling only
+    moves further away. If ``requirement / 2 <= area < requirement``, it
+    becomes ``requirement - area <= 2 * area - requirement``, that is
+    ``area >= 2/3 * requirement``. If ``area < requirement / 2``, the next
+    doubling still undershoots and gets closer, so it never holds. All
+    cases together reduce to ``3 * area >= 2 * requirement``.
+
+    The doubling is only approximate, as joined chunks can differ in
+    size, so the 2/3 threshold is a heuristic, not a guarantee.
+
+    :param area: area of a chunk
     :param requirement: area requirement
-    :return: True if the areas area close enough
+    :return: True if the chunk is close enough to stop joining
     """
-    return requirement - area <= 2 * area - requirement >= 0
+    return 3 * area >= 2 * requirement
 
 
 def join_pairs(partition: Partition) -> None:
     """
     Merges the smallest chunks with their neighbors into compact pairs.
 
-    :param partition:
-    :return:
+    Goes through the chunks with the fewest triangles from the least
+    compact one, uniting each with the neighbor that gives the most
+    compact union. A chunk takes part in at most one union, and unions
+    aren't merged further.
+    :param partition: partition to update in place
     """
     smallest_chunk_size = min(len(chunk.triangles)
                               for chunk in partition.chunk_map)
-    potential_sources = dict.fromkeys(
-        chunk for chunk in partition.chunk_map
-        if len(chunk.triangles) == smallest_chunk_size)
-    potential_targets = dict.fromkeys(partition.chunk_map)
-    while potential_sources:
-        merge_least_compact(partition,
-                            potential_sources,
-                            potential_targets)
-
-
-def merge_least_compact(partition: Partition,
-                        potential_sources: dict[Chunk, None],
-                        potential_targets: dict[Chunk, None]) -> None:
-    """
-    Merges the least compact source chunk with its best target neighbor.
-
-    :param partition:
-    :param potential_sources:
-    :param potential_targets:
-    :return:
-    """
-    source = min(potential_sources, key=Chunk.compactness)
-    neighbors = [neighbor for neighbor in partition.chunk_neighbors(source)
-                 if neighbor in potential_targets]
-    if not neighbors:
-        potential_sources.pop(source)
-        return
-    best_target = max(
-        neighbors,
-        key=lambda neighbor: ((source.area + neighbor.area) ** 0.5
-                              / partition.union_perimeter(source, neighbor)))
-    potential_sources.pop(source)
-    potential_sources.pop(best_target, None)
-    potential_targets.pop(source)
-    potential_targets.pop(best_target)
-    if len(source.triangles) > PLOT_STARTING_NUMBER:
-        draw(*partition.chunk_map, source, best_target)
-    partition.unite(source, best_target)
+    # Sorted once: merged chunks are skipped and unions never become
+    # sources, so a source's compactness can't change while waiting.
+    sources = sorted((chunk for chunk in partition.chunk_map
+                      if len(chunk.triangles) == smallest_chunk_size),
+                     key=Chunk.compactness)
+    unmerged = dict.fromkeys(partition.chunk_map)
+    for source in sources:
+        if source not in unmerged:
+            continue
+        neighbors = [neighbor
+                     for neighbor in partition.chunk_neighbors(source)
+                     if neighbor in unmerged]
+        if not neighbors:
+            continue
+        best_target = max(
+            neighbors,
+            key=lambda neighbor: partition.union_compactness(source,
+                                                             neighbor))
+        del unmerged[source]
+        del unmerged[best_target]
+        partition.unite(source, best_target)
 
 
 def swap_leaves(partition: Partition) -> None:
     """
     Moves leaf triangles to the neighbor chunks surrounding them.
 
-    Locates leaf triangles in chunks and moves them to the neighbor
-    chunk if this triangle is surrounded by two triangles from that
-    chunk
+    A leaf is a triangle with no edge on the polygon's border, one
+    neighbor in its own chunk and the other two in a single other chunk.
+    Moving it there keeps its chunk non-empty and connected, and
+    shortens the perimeters of both chunks: the edge to its own chunk is
+    shorter than the two edges to the other one. Triangles on the
+    polygon's border are never moved: the target's perimeter would grow.
+    At most one leaf, the first found, is moved out of each chunk per
+    call. Chunks are visited in the order of the chunk map, each seeing
+    the moves made before it.
     :param partition: input partition that will be updated in-place
     """
     for chunk in partition.chunk_map:
         for triangle in chunk.triangles:
-            triangle_neighbors = list(partition.triangle_neighbors(triangle))
+            triangle_neighbors = partition.triangle_neighbors(triangle)
             if len(triangle_neighbors) != TRIANGLE_SIDES_COUNT:
                 continue
-            if sum(neighbor in chunk.triangles
-                   for neighbor in triangle_neighbors) != 1:
+            outside_neighbors = [neighbor
+                                 for neighbor in triangle_neighbors
+                                 if neighbor not in chunk.triangles]
+            if len(outside_neighbors) != TRIANGLE_SIDES_COUNT - 1:
                 continue
-            first_neighbor, second_neighbor = (
-                neighbor for neighbor in triangle_neighbors
-                if neighbor not in chunk.triangles)
+            first_neighbor, second_neighbor = outside_neighbors
             chunk_neighbors = partition.chunk_neighbors(chunk)
             first_neighbor_chunk = next(
                 chunk_neighbor for chunk_neighbor in chunk_neighbors
@@ -159,7 +188,7 @@ def swap_leaves(partition: Partition) -> None:
             second_neighbor_chunk = next(
                 chunk_neighbor for chunk_neighbor in chunk_neighbors
                 if second_neighbor in chunk_neighbor.triangles)
-            if first_neighbor_chunk != second_neighbor_chunk:
+            if first_neighbor_chunk is not second_neighbor_chunk:
                 continue
             # safe to mutate `chunk.triangles`: we stop iterating right after
             partition.move(triangle,
@@ -174,79 +203,77 @@ def join_small_chunks(partition: Partition,
     """
     Joins chunks with unsatisfactory areas with their neighbors.
 
-    Finds chunks that are not close enough to the area requirement
-    and joins them with their neighbors to form larger chunks.
-    :param partition: input partition
+    Repeatedly takes the least compact chunk whose area isn't
+    satisfactory (see ``is_satisfactory_area``) and unites it with the
+    neighbor giving the most compact union. Neighbors whose union would
+    exceed the requirement by more than the chunk falls short of it are
+    skipped, and a chunk with no other neighbor is left as is. A union
+    that is still unsatisfactory is joined further. Stops when no
+    unsatisfactory chunk can be joined or only two chunks are left.
+    :param partition: partition to update in place
     :param requirement: area requirement
     """
-    potential_sources = dict.fromkeys(
+    sources = dict.fromkeys(
         chunk for chunk in partition.chunk_map
         if not is_satisfactory_area(chunk.area, requirement=requirement))
-    while potential_sources and len(partition.chunk_map) > PARTS_COUNT:
-        source = min(potential_sources, key=Chunk.compactness)
-        best_target = None
-        max_compactness = 0.0
-        neighbors = list(partition.chunk_neighbors(source))
-        for neighbor in neighbors:
-            area = source.area + neighbor.area
-            if area - requirement > requirement - source.area:
-                continue
-            perimeter = partition.union_perimeter(source, neighbor)
-            compactness_ = area ** 0.5 / perimeter
-            if compactness_ > max_compactness:
-                best_target = neighbor
-                max_compactness = compactness_
-        potential_sources.pop(source)
-        if best_target is not None:
-            potential_sources.pop(best_target, None)
-            union = partition.unite(source, best_target)
-            if (not requirement - union.area <= 2 * union.area - requirement
-                    >= 0):
-                potential_sources.setdefault(union)
+    while sources and len(partition.chunk_map) > PARTS_COUNT:
+        source = min(sources, key=Chunk.compactness)
+        del sources[source]
+        shortfall = requirement - source.area
+        targets = [neighbor
+                   for neighbor in partition.chunk_neighbors(source)
+                   if source.area + neighbor.area - requirement <= shortfall]
+        if not targets:
+            continue
+        best_target = max(
+            targets,
+            key=lambda neighbor: partition.union_compactness(source,
+                                                             neighbor))
+        sources.pop(best_target, None)
+        union = partition.unite(source, best_target)
+        if not is_satisfactory_area(union.area, requirement=requirement):
+            sources.setdefault(union)
 
 
 def most_compact_pair(partition: Partition) -> tuple[Chunk, Chunk]:
     """
-    Finds the most compact pair of chunks for the given partition.
+    Picks a chunk and unites all the other chunks into its remainder.
 
-    :param partition: input partition
-    :return: a pair of the most compact chunks
+    Among the chunks whose removal leaves the other chunks connected,
+    picks the one for which the less compact of the chunk and its
+    remainder is the most compact (the first one on ties).
+    :param partition: partition with at least two chunks, updated
+    in-place: all the chunks except the picked one are united
+    :return: the picked chunk and the remainder
     """
-    perimeter_edges = {
-        edge for triangle, neighbor_map in partition.triangular_map.items()
-        for edge, neighbor in neighbor_map.items()
-        if neighbor is None}
-    total_perimeter = sum(map(fast_length, perimeter_edges))
-    max_compactness = 0
-    best_chunk = None
-    for chunk in partition.chunk_map:
-        if partition.is_articulation_chunk(chunk):
-            continue
-        chunk_compactness = chunk.area ** 0.5 / chunk.perimeter
-        remainder_area = partition.total_area - chunk.area
-        chunk_edges = {edge for triangle in chunk.triangles
-                       for edge in partition.triangular_map[triangle]}
-        common_edges = {edge for edge in chunk_edges
-                        if edge in perimeter_edges}
-        chunk_only_edges = {
-            edge
-            for triangle in chunk.triangles
-            for edge, neighbor in partition.triangular_map[triangle].items()
-            if neighbor is not None and neighbor not in chunk.triangles}
-        chunk_only_perimeter = sum(map(fast_length, chunk_only_edges))
-        common_perimeter = sum(map(fast_length, common_edges))
-        remainder_perimeter = (total_perimeter - common_perimeter
-                               + chunk_only_perimeter)
-        remainder_compactness = remainder_area ** 0.5 / remainder_perimeter
-        compactness_min_of_two = min(chunk_compactness, remainder_compactness)
-        draw(*partition.chunk_map, red=chunk)
-        if compactness_min_of_two > max_compactness:
-            best_chunk = chunk
-            max_compactness = compactness_min_of_two
-    if best_chunk is None:
-        raise RuntimeError("Couldn't find the best chunk")
-    remainder = collect_remainder(best_chunk, partition)
-    return best_chunk, remainder
+    border_perimeter = sum(fast_length(edge)
+                           for neighbors in partition.triangular_map.values()
+                           for edge, neighbor in neighbors.items()
+                           if neighbor is None)
+
+    def score(chunk: Chunk) -> float:
+        # Each edge appears once among the chunk's triangles, so there's
+        # no need to collect them in sets (hashing them is slow).
+        chunk_border_perimeter = shared_perimeter = 0.
+        for triangle in chunk.triangles:
+            for edge, neighbor in partition.triangular_map[triangle].items():
+                if neighbor is None:
+                    chunk_border_perimeter += fast_length(edge)
+                elif neighbor not in chunk.triangles:
+                    shared_perimeter += fast_length(edge)
+        # The remainder's border is the polygon's border without the
+        # chunk's part of it, plus the edges it shares with the chunk.
+        remainder_perimeter = (border_perimeter - chunk_border_perimeter
+                               + shared_perimeter)
+        remainder_compactness: float = (
+            (partition.total_area - chunk.area) ** 0.5
+            / remainder_perimeter)
+        return min(chunk.compactness(), remainder_compactness)
+
+    best_chunk = max((chunk for chunk in partition.chunk_map
+                      if not partition.is_articulation_chunk(chunk)),
+                     key=score)
+    return best_chunk, collect_remainder(best_chunk, partition)
 
 
 def collect_remainder(chunk: Chunk,
@@ -254,15 +281,24 @@ def collect_remainder(chunk: Chunk,
     """
     Unites all the chunks except the given one into a single chunk.
 
-    :param chunk:
-    :param partition:
-    :return:
+    Repeatedly unites the chunk's first neighbor with one of that
+    neighbor's own neighbors until only the chunk and one other chunk
+    are left.
+    :param chunk: chunk to keep out of the union
+    :param partition: partition with at least two chunks, updated
+    in-place
+    :return: the union of all the other chunks
+    :raises ValueError: if the partition has fewer than two chunks or
+    the other chunks aren't connected without the given one
     """
+    if partition.is_articulation_chunk(chunk):
+        raise ValueError("The other chunks must be connected without "
+                         "the given one")
     while len(partition.chunk_map) > PARTS_COUNT:
         neighbor = partition.chunk_neighbors(chunk)[0]
         neighbors_neighbor = next(
             node for node in partition.chunk_neighbors(neighbor)
-            if node != chunk)
+            if node is not chunk)
         partition.unite(neighbor, neighbors_neighbor)
     return partition.chunk_neighbors(chunk)[0]
 
@@ -275,41 +311,51 @@ def readjust(chunk: Chunk,
     """
     Moves triangles from the chunk to its neighbor to meet the requirement.
 
-    :param chunk:
-    :param neighbor:
-    :param requirement:
-    :param partition:
-    :return:
+    Each round moves the first triangle of the chunk that touches the
+    neighbor and can leave without disconnecting the chunk. Triangles
+    next to ones already moved are set aside and tried last, so that the
+    chunk shrinks along its border instead of being dug into in one
+    place. If no triangle can be moved, one is split first
+    (``divide_border_edge_triangle``), which always yields one that can.
+    Once the chunk's area drops below the requirement, the last triangle
+    is moved back and cut to meet it exactly
+    (``final_node_refinement``). Expects the partition to consist of the
+    chunk and its neighbor only: a triangle touching a third chunk could
+    otherwise be moved to a neighbor it doesn't touch.
+    :param chunk: chunk to shrink, updated in place
+    :param neighbor: the other chunk, updated in place
+    :param requirement: required area of the chunk
+    :param partition: partition of the two chunks, updated in place
+    :return: the chunk and its neighbor
+    :raises ValueError: if the requirement isn't below the chunk's area
     """
-    draw(*partition.chunk_map, red=chunk)
-    ignored_neighbors: dict[CachedPolygon, None] = {}
+    if not requirement < chunk.area:
+        raise ValueError("The requirement must be below the chunk's area")
+    set_aside: dict[CachedPolygon, None] = {}
     while True:
-        unignored_chunk_triangles = (triangle for triangle in chunk.triangles
-                                     if triangle not in ignored_neighbors)
-        prioritized_chunk_triangles = chain(unignored_chunk_triangles,
-                                            ignored_neighbors)
+        # Set-aside triangles can have been moved out of the chunk since.
+        prioritized_chunk_triangles = chain(
+            (triangle for triangle in chunk.triangles
+             if triangle not in set_aside),
+            (triangle for triangle in set_aside
+             if triangle in chunk.triangles))
         border_triangle = next(
             (triangle for triangle in prioritized_chunk_triangles
              if partition.is_touching_other_chunk(triangle, this_chunk=chunk)
              and not partition.is_articulation_triangle(triangle,
                                                         chunk.triangles)
              ), None)
-        if border_triangle is None and ignored_neighbors:
-            ignored_neighbors = {}
-            continue
         if border_triangle is None:
+            # The search covered every triangle of the chunk, set-aside
+            # ones included, so one has to be split.
+            set_aside = {}
             divide_border_edge_triangle(chunk, neighbor, partition)
-            border_triangle = next(
-                triangle for triangle in partition.border_triangles(chunk)
-                if not partition.is_articulation_triangle(triangle,
-                                                          chunk.triangles))
-            draw(*partition.chunk_map, blue=chunk)
+            border_triangle = next(partition.movable_triangles(chunk))
 
         partition.move(border_triangle, source=chunk, target=neighbor)
         for neighbor_triangle in partition.triangle_neighbors(border_triangle):
             if neighbor_triangle in chunk.triangles:
-                ignored_neighbors.setdefault(neighbor_triangle)
-        draw(*partition.chunk_map, blue=chunk)
+                set_aside.setdefault(neighbor_triangle)
         if chunk.area == requirement:
             return chunk, neighbor
         if chunk.area < requirement:
@@ -328,71 +374,77 @@ def divide_border_edge_triangle(chunk: Chunk,
                                 neighbor: Chunk,
                                 partition: Partition) -> None:
     """
-    Splits a border-edge triangle of the chunk into two triangles.
+    Cuts a triangle of the chunk touching the neighbor so that it can move.
 
-    :param chunk: chunk where a node on the border will be found
-    that will be split
-    :param neighbor: neighbor chunk
-    :param partition: partition
+    Used by ``readjust`` and ``add_triangles`` when no triangle of the
+    chunk can be moved without disconnecting it. Takes the triangle T
+    from ``border_edge_triangle`` and its neighbor C in the chunk from
+    ``edge_neighbor``, and cuts T from its vertex opposite their shared
+    edge to that edge's midpoint (``divide`` cuts C there too). The half
+    of T with T's edge to the neighbor touches the neighbor and can be
+    moved, as the other half and C's halves keep connected everything T
+    connected (see ``edge_neighbor``).
+    :param chunk: chunk to cut a triangle of
+    :param neighbor: chunk the triangle should touch
+    :param partition: partition the chunks belong to, updated in place
+    :raises ValueError: if ``border_edge_triangle`` finds no triangle
     """
-    leaf = border_edge_triangle(chunk, neighbor, partition)
-    neighbor_to_split = edge_neighbor(leaf, chunk, partition)
-    edge = partition.edge_between_triangles(leaf, neighbor_to_split)
+    triangle = border_edge_triangle(chunk, neighbor, partition)
+    neighbor_to_split = edge_neighbor(triangle, chunk, partition)
+    edge = partition.edge_between_triangles(triangle, neighbor_to_split)
     pivot_index = next(index
-                       for index, vertex in enumerate(leaf.border.vertices)
+                       for index, vertex in enumerate(
+                           triangle.border.vertices)
                        if vertex not in edge)
     divide(partition,
-           node=leaf,
+           node=triangle,
            pivot_index=pivot_index,
            new_vertex=edge.centroid,
-           chunk=chunk,
-           neighbor=neighbor)
+           chunk=chunk)
 
 
 def border_edge_triangle(chunk: Chunk,
                          neighbor: Chunk,
                          partition: Partition) -> CachedPolygon:
     """
-    Finds a border-edge triangle in the chunk.
+    Finds a triangle of the chunk to split so that moves can continue.
 
-    We call "border-edge" triangles those triangles that can be split
-    so that the algorithm would be able to find a way to continue
-    reassigning triangles from one chunk to another.
-    These border-edge triangles have the following properties:
-    1) they have exactly 1 neighbor triangle N that belongs to neighbor
-    chunk and 2 neighbor triangles that belong to the current chunk
-    2) there is not more than 1 triangle sharing any vertex with N
-    that is adjacent to any triangle from the current chunk
+    Used when no triangle can be moved between the chunks without
+    disconnecting one of them. Returns the first triangle T of the chunk
+    such that:
+    1) T has exactly one neighbor triangle N in the neighbor chunk and
+    the other two in the chunk itself (so no edge of T is on the
+    polygon's border);
+    2) at most one triangle of the neighbor chunk other than N shares a
+    vertex with T and touches a chunk other than the neighbor (that is
+    the given chunk: there are only two chunks when this is called).
+    :param chunk: chunk to find the triangle in
+    :param neighbor: neighbor chunk
+    :param partition: partition the chunks belong to
+    :return: the first triangle of the chunk meeting both conditions
+    :raises ValueError: if no triangle of the chunk meets them
     """
     for triangle in chunk.triangles:
         triangle_neighbors = partition.triangle_neighbors(triangle)
-        neighbor_triangles_count = sum(
-            triangle_neighbor in neighbor.triangles
-            for triangle_neighbor in triangle_neighbors)
-        chunk_triangles_count = sum(
+        outside_neighbors = [triangle_neighbor
+                             for triangle_neighbor in triangle_neighbors
+                             if triangle_neighbor in neighbor.triangles]
+        inside_neighbors_count = sum(
             triangle_neighbor in chunk.triangles
             for triangle_neighbor in triangle_neighbors)
-        if (neighbor_triangles_count != 1
-                or chunk_triangles_count != TRIANGLE_SIDES_COUNT - 1):
+        if (len(outside_neighbors) != 1
+                or inside_neighbors_count != TRIANGLE_SIDES_COUNT - 1):
             continue
-        triangle_neighbor_triangle = next(
-            triangle_neighbor
-            for triangle_neighbor in triangle_neighbors
-            if triangle_neighbor in neighbor.triangles)
+        (outside_neighbor,) = outside_neighbors
         vertices = triangle.border.vertices
-        triangles_sharing_vertices = {
+        touching_triangles = [
             neighbor_triangle for neighbor_triangle in neighbor.triangles
-            if neighbor_triangle != triangle_neighbor_triangle
+            if neighbor_triangle is not outside_neighbor
             and any(vertex in vertices
-                    for vertex in neighbor_triangle.border.vertices)}
-        adjacent_triangles = {
-            neighbor_triangle
-            for neighbor_triangle in triangles_sharing_vertices
-            if partition.is_touching_other_chunk(neighbor_triangle,
-                                                 this_chunk=neighbor)}
-        draw(*partition.chunk_map, triangle_neighbor_triangle,
-             blue=chunk, red=triangle)
-        if len(adjacent_triangles) <= 1:
+                    for vertex in neighbor_triangle.border.vertices)
+            and partition.is_touching_other_chunk(neighbor_triangle,
+                                                  this_chunk=neighbor)]
+        if len(touching_triangles) <= 1:
             return triangle
     raise ValueError("Couldn't find a triangle to split")
 
@@ -401,44 +453,67 @@ def edge_neighbor(triangle: CachedPolygon,
                   chunk: Chunk,
                   partition: Partition) -> CachedPolygon:
     """
-    Finds the neighbor of the triangle that should be split.
+    Finds the neighbor of the triangle to split along with it.
 
-    :param triangle:
-    :param chunk:
-    :param partition:
-    :return:
+    Prefers the first neighbor C of the triangle within the chunk such
+    that no neighbor of C other than the triangle touches another chunk,
+    i.e. C reaches the chunk's border only through the triangle; without
+    one, takes the first neighbor within the chunk. Either works for
+    ``divide_border_edge_triangle``: cutting the triangle at the midpoint
+    of its edge with any neighbor in the chunk leaves a half that
+    touches the other chunk and can be moved without disconnecting
+    anything (the other half and the neighbor's two halves keep the rest
+    connected). Expects a triangle touching another chunk, as
+    ``border_edge_triangle`` returns.
+    :param triangle: triangle of the chunk touching another chunk
+    :param chunk: chunk the triangle belongs to
+    :param partition: partition the chunk belongs to
+    :return: the first neighbor of the triangle within the chunk meeting
+    the condition, or the first one within the chunk if none does
+    :raises ValueError: if the triangle has no neighbor within the chunk
     """
-    for neighbor in partition.triangle_neighbors(triangle):
-        if neighbor not in chunk.triangles:
-            continue
-        neighbor_neighbors = partition.triangle_neighbors(neighbor)
-        count = sum(partition.is_touching_other_chunk(neighbor_neighbor,
-                                                      this_chunk=chunk)
-                    for neighbor_neighbor in neighbor_neighbors)
-
-        draw(*partition.chunk_map, blue=chunk, red=neighbor)
-        if count == 1:
+    chunk_neighbors = [neighbor
+                       for neighbor in partition.triangle_neighbors(triangle)
+                       if neighbor in chunk.triangles]
+    if not chunk_neighbors:
+        raise ValueError("Couldn't find edge neighbor.")
+    for neighbor in chunk_neighbors:
+        if not any(
+                other not in chunk.triangles
+                or partition.is_touching_other_chunk(other, this_chunk=chunk)
+                for other in partition.triangle_neighbors(neighbor)
+                if other is not triangle):
             return neighbor
-    raise ValueError("Couldn't find edge neighbor.")
+    return chunk_neighbors[0]
 
 
-def divide(partition: Partition,  # noqa: PLR0917, PLR0913
+def divide(partition: Partition,
+           *,
            node: CachedPolygon,
            pivot_index: int,
-           new_vertex: Point,
-           chunk: Chunk,
-           neighbor: Chunk) -> tuple[CachedPolygon, CachedPolygon]:
+           new_vertex: Point[Fraction],
+           chunk: Chunk) -> tuple[CachedPolygon, CachedPolygon]:
     """
-    Splits the node by a segment from its pivot vertex to the new vertex.
+    Cuts the node by a segment from its pivot vertex to the new vertex.
 
-    :param partition:
-    :param node:
-    :param pivot_index:
-    :param new_vertex:
-    :param chunk:
-    :param neighbor:
-    :return:
+    The new vertex must lie strictly inside the node's edge opposite the
+    pivot. The triangle across that edge, if any, is cut at the new
+    vertex too, so that no vertex lies inside an edge. Updates the
+    triangular map, the chunks' triangles and the edges chunks share.
+    Areas don't change; neither do the cached perimeters, though cutting
+    an edge on the polygon's border can change their rounding.
+    :param partition: partition to update in place
+    :param node: triangle of the chunk to cut
+    :param pivot_index: index of the pivot among the node's vertices
+    :param new_vertex: point strictly inside the edge opposite the pivot
+    :param chunk: chunk the node belongs to
+    :return: the part with the vertex before the pivot and the part with
+    the vertex after it
+    :raises ValueError: if the node doesn't belong to the chunk
     """
+    if node not in chunk.triangles:
+        raise ValueError("The node must belong to the chunk")
+    triangular_map = partition.triangular_map
     vertices = node.border.vertices
     pivot_vertex = vertices[pivot_index]
     left_vertex = vertices[pivot_index - 1]
@@ -446,82 +521,69 @@ def divide(partition: Partition,  # noqa: PLR0917, PLR0913
     left_segment = Segment(pivot_vertex, left_vertex)
     right_segment = Segment(right_vertex, pivot_vertex)
     third_segment = Segment(left_vertex, right_vertex)
+    left_third_segment = Segment(left_vertex, new_vertex)
+    right_third_segment = Segment(right_vertex, new_vertex)
+    cut = Segment(pivot_vertex, new_vertex)
     left_part = CachedPolygon(Contour([pivot_vertex, left_vertex, new_vertex]))
     right_part = CachedPolygon(Contour([right_vertex, pivot_vertex,
                                         new_vertex]))
-    left_neighbor = partition.triangular_map[node][left_segment]
-    right_neighbor = partition.triangular_map[node][right_segment]
-    third_neighbor = partition.triangular_map[node][third_segment]
-    partition.triangular_map[left_part] = {Segment(pivot_vertex, new_vertex):
-                                           right_part}
-    partition.triangular_map[right_part] = {Segment(pivot_vertex, new_vertex):
-                                            left_part}
-    partition.triangular_map[left_part][left_segment] = left_neighbor
-    if left_neighbor is not None:
-        partition.triangular_map[left_neighbor][left_segment] = left_part
-    partition.triangular_map[right_part][right_segment] = right_neighbor
-    if right_neighbor is not None:
-        partition.triangular_map[right_neighbor][right_segment] = right_part
-    if third_neighbor is not None:
-        third_neighbor_only_vertex = next(
-            vertex for vertex in third_neighbor.border.vertices
-            if vertex not in {left_vertex, right_vertex})
-        third_neighbor_left_part = CachedPolygon(
-            Contour([new_vertex, left_vertex, third_neighbor_only_vertex]))
-        third_neighbor_right_part = CachedPolygon(
-            Contour([right_vertex, new_vertex, third_neighbor_only_vertex]))
-        partition.triangular_map[third_neighbor_left_part] = {
-            Segment(new_vertex, third_neighbor_only_vertex):
-                third_neighbor_right_part}
-        partition.triangular_map[third_neighbor_right_part] = {
-            Segment(new_vertex, third_neighbor_only_vertex):
-                third_neighbor_left_part}
-        partition.triangular_map[left_part][
-            Segment(left_vertex, new_vertex)] = third_neighbor_left_part
-        partition.triangular_map[third_neighbor_left_part][
-            Segment(left_vertex, new_vertex)] = left_part
-        partition.triangular_map[right_part][
-            Segment(right_vertex, new_vertex)] = third_neighbor_right_part
-        partition.triangular_map[third_neighbor_right_part][
-            Segment(right_vertex, new_vertex)] = right_part
-        third_neighbor_left_segment = Segment(left_vertex,
-                                              third_neighbor_only_vertex)
-        third_neighbor_right_segment = Segment(right_vertex,
-                                               third_neighbor_only_vertex)
-        third_neighbor_left_neighbor = next(
-            (neighbor for neighbor in partition.triangle_neighbors(
-                third_neighbor)
-             if partition.edge_between_triangles(third_neighbor, neighbor)
-             == third_neighbor_left_segment), None)
-        third_neighbor_right_neighbor = next(
-            (neighbor for neighbor in partition.triangle_neighbors(
-                third_neighbor)
-             if partition.edge_between_triangles(third_neighbor, neighbor)
-             == third_neighbor_right_segment), None)
-        partition.triangular_map[third_neighbor_left_part][
-            third_neighbor_left_segment] = third_neighbor_left_neighbor
-        if third_neighbor_left_neighbor is not None:
-            partition.triangular_map[third_neighbor_left_neighbor][
-                third_neighbor_left_segment] = third_neighbor_left_part
-        partition.triangular_map[third_neighbor_right_part][
-            third_neighbor_right_segment] = third_neighbor_right_neighbor
-        if third_neighbor_right_neighbor is not None:
-            partition.triangular_map[third_neighbor_right_neighbor][
-                third_neighbor_right_segment] = third_neighbor_right_part
-        partition.triangular_map.pop(third_neighbor)
-        chunk_with_third_neighbor = next(chunk_ for chunk_ in (chunk, neighbor)
-                                         if third_neighbor in chunk_.triangles)
-        chunk_with_third_neighbor.triangles.pop(third_neighbor)
-        chunk_with_third_neighbor.triangles.setdefault(
-            third_neighbor_left_part)
-        chunk_with_third_neighbor.triangles.setdefault(
-            third_neighbor_right_part)
-
-    partition.triangular_map.pop(node)
+    node_neighbors = triangular_map.pop(node)
+    triangular_map[left_part] = {cut: right_part}
+    triangular_map[right_part] = {cut: left_part}
+    _link(partition, left_part, node_neighbors[left_segment], left_segment)
+    _link(partition, right_part, node_neighbors[right_segment],
+          right_segment)
+    third_neighbor = node_neighbors[third_segment]
+    if third_neighbor is None:
+        triangular_map[left_part][left_third_segment] = None
+        triangular_map[right_part][right_third_segment] = None
+    else:
+        only_vertex = next(vertex
+                           for vertex in third_neighbor.border.vertices
+                           if vertex not in {left_vertex, right_vertex})
+        third_cut = Segment(new_vertex, only_vertex)
+        third_left_segment = Segment(left_vertex, only_vertex)
+        third_right_segment = Segment(right_vertex, only_vertex)
+        third_left_part = CachedPolygon(
+            Contour([new_vertex, left_vertex, only_vertex]))
+        third_right_part = CachedPolygon(
+            Contour([right_vertex, new_vertex, only_vertex]))
+        third_neighbor_neighbors = triangular_map.pop(third_neighbor)
+        triangular_map[third_left_part] = {third_cut: third_right_part}
+        triangular_map[third_right_part] = {third_cut: third_left_part}
+        _link(partition, left_part, third_left_part, left_third_segment)
+        _link(partition, right_part, third_right_part, right_third_segment)
+        _link(partition, third_left_part,
+              third_neighbor_neighbors[third_left_segment],
+              third_left_segment)
+        _link(partition, third_right_part,
+              third_neighbor_neighbors[third_right_segment],
+              third_right_segment)
+        owner = next(chunk_ for chunk_ in partition.chunk_map
+                     if third_neighbor in chunk_.triangles)
+        owner.triangles.pop(third_neighbor)
+        owner.triangles.setdefault(third_left_part)
+        owner.triangles.setdefault(third_right_part)
+        if owner is not chunk:
+            partition.split_shared_edge(chunk,
+                                        owner,
+                                        third_segment,
+                                        [left_third_segment,
+                                         right_third_segment])
     chunk.triangles.pop(node)
     chunk.triangles.setdefault(left_part)
     chunk.triangles.setdefault(right_part)
     return left_part, right_part
+
+
+def _link(partition: Partition,
+          triangle: CachedPolygon,
+          other: CachedPolygon | None,
+          edge: Segment[Fraction]) -> None:
+    """Records what lies across the edge, on both sides if needed."""
+    partition.triangular_map[triangle][edge] = other
+    if other is not None:
+        partition.triangular_map[other][edge] = triangle
 
 
 def final_node_refinement(node_to_split: CachedPolygon,
@@ -531,33 +593,46 @@ def final_node_refinement(node_to_split: CachedPolygon,
                           neighbor: Chunk,
                           partition: Partition) -> None:
     """
-    Splits the node so that the chunk area meets the requirement exactly.
+    Cuts the node so that the chunk's area meets the requirement exactly.
 
-    :param node_to_split: triangle to be split
-    :param requirement: area requirement for this triangle
-    :param chunk: chunk the triangle belongs to
-    :param neighbor: neighbor chunk touching the triangle
-    :param partition: partition
+    Cuts the node from the pivot ``find_pivot`` picks, so that the part
+    staying in the chunk has the area the chunk lacks without the node,
+    and moves the other part to the neighbor. Callers have just moved
+    the node into the chunk, past the requirement: ``readjust`` moved it
+    out, fell below the requirement and moved it back; ``add_triangles``
+    moved it in and rose above it. The chunk stays connected if the node
+    either has a neighbor in it and isn't an articulation triangle, or
+    joined it from outside; the moved part touches the neighbor if the
+    node does.
+    :param node_to_split: triangle of the chunk to cut
+    :param requirement: required area of the chunk
+    :param chunk: chunk the triangle belongs to, updated in place
+    :param neighbor: chunk touching the triangle, receiving the cut-off
+    part
+    :param partition: partition the chunks belong to
+    :raises ValueError: if the node isn't in the chunk, or the
+    requirement isn't strictly between the chunk's area without the node
+    and with it
     """
+    if node_to_split not in chunk.triangles:
+        raise ValueError("The node must belong to the chunk")
+    if not chunk.area - node_to_split.area < requirement < chunk.area:
+        raise ValueError("The requirement must be strictly between the "
+                         "chunk's area without the node and with it")
     pivot_index = find_pivot(node_to_split,
                              partition=partition,
                              chunk=chunk)
     vertices = node_to_split.border.vertices
-    draw(*partition.chunk_map, red=[node_to_split, vertices[pivot_index]],
-         blue=chunk)
     new_vertex = inverse_shoelace(
         requirement + node_to_split.area - chunk.area,
         endpoint=vertices[pivot_index],
         base_start=vertices[pivot_index - 1],
         base_end=vertices[pivot_index - 2])
-    draw(*partition.chunk_map,
-         red=[node_to_split, vertices[pivot_index]], blue=[chunk, new_vertex])
     _, right = divide(partition,
                       node=node_to_split,
                       pivot_index=pivot_index,
                       new_vertex=new_vertex,
-                      chunk=chunk,
-                      neighbor=neighbor)
+                      chunk=chunk)
     partition.move(right,
                    source=chunk,
                    target=neighbor)
@@ -568,32 +643,40 @@ def find_pivot(triangle: CachedPolygon,
                partition: Partition,
                chunk: Chunk) -> int:
     """
-    Finds the index of the vertex to split the triangle from.
+    Finds the index of the vertex to cut the triangle from.
 
-    :param triangle:
-    :param partition:
-    :param chunk:
-    :return:
+    ``final_node_refinement`` cuts the triangle from the pivot P to the
+    edge opposite it, keeps the part with the vertex before P in the
+    chunk and moves the part with the vertex after P to the other chunk.
+    So that the kept part stays attached to the chunk, the edge from the
+    vertex before P to P is the one shared with the triangle's first
+    neighbor in the chunk. If there is none, the moved part stays
+    attached to the other chunk instead: the edge from P to the vertex
+    after it is the one shared with the triangle's first neighbor
+    outside the chunk (the other chunk, as there are only two chunks
+    when this is called).
+    :param triangle: triangle of the chunk to cut
+    :param partition: partition the chunk belongs to
+    :param chunk: chunk the triangle belongs to
+    :return: index of the pivot among the triangle's vertices, 0 if the
+    triangle has no neighbors
     """
-    predecessor = next(
-        (neighbor for neighbor in partition.triangle_neighbors(triangle)
-         if neighbor in chunk.triangles), None)
-    if predecessor is not None:
-        unoriented_edge = partition.edge_between_triangles(triangle,
-                                                           predecessor)
-        oriented_edge = next(edge for edge in triangle.edges
-                             if edge == unoriented_edge)
-        return cast("int",
-                    triangle.border.vertices.index(oriented_edge.end))
-    neighbor = next(
-        (neighbor for neighbor in partition.triangle_neighbors(triangle)
-         if neighbor not in chunk.triangles), None)
-    if neighbor is None:
+    neighbors = partition.triangular_map[triangle]
+    vertices = triangle.border.vertices
+    chunk_edge = next((edge for edge, neighbor in neighbors.items()
+                       if neighbor is not None
+                       and neighbor in chunk.triangles), None)
+    if chunk_edge is not None:
+        return next(index for index in range(len(vertices))
+                    if Segment(vertices[index - 1], vertices[index])
+                    == chunk_edge)
+    outside_edge = next((edge for edge, neighbor in neighbors.items()
+                         if neighbor is not None), None)
+    if outside_edge is None:
         return 0  # any index will do
-    unoriented_edge = partition.edge_between_triangles(triangle, neighbor)
-    oriented_edge = next(edge for edge in triangle.edges
-                         if edge == unoriented_edge)
-    return cast("int", triangle.border.vertices.index(oriented_edge.start))
+    return next(index for index in range(len(vertices))
+                if Segment(vertices[index], vertices[index - 2])
+                == outside_edge)
 
 
 def add_triangles(chunk: Chunk,
@@ -604,13 +687,26 @@ def add_triangles(chunk: Chunk,
     """
     Moves triangles from the neighbor to the chunk to meet the requirement.
 
-    :param chunk:
-    :param neighbor:
-    :param requirement:
-    :param partition:
-    :return:
+    Each round moves the first triangle of the neighbor that touches the
+    chunk and can leave without disconnecting the neighbor. If no
+    triangle can be moved, one is split first
+    (``divide_border_edge_triangle``), which always yields one that can.
+    Once the chunk's area exceeds the requirement, the last triangle is
+    cut to meet it exactly (``final_node_refinement``). Expects the
+    partition to consist of the chunk and its neighbor only: a triangle
+    touching only a third chunk could otherwise be moved to a chunk it
+    doesn't touch.
+    :param chunk: chunk to grow, updated in place
+    :param neighbor: the other chunk, updated in place
+    :param requirement: required area of the chunk
+    :param partition: partition of the two chunks, updated in place
+    :return: the chunk and its neighbor
+    :raises ValueError: if the requirement isn't strictly between the
+    chunk's area and the area of both chunks
     """
-    draw(*partition.chunk_map, red=chunk)
+    if not chunk.area < requirement < chunk.area + neighbor.area:
+        raise ValueError("The requirement must be strictly between the "
+                         "chunk's area and the area of both chunks")
     while True:
         triangle = next(partition.movable_triangles(neighbor), None)
         if triangle is None:

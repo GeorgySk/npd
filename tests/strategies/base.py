@@ -3,22 +3,31 @@ from math import floor
 
 from hypothesis import strategies as st
 from hypothesis.strategies import SearchStrategy
+from gon.base import (Contour,
+                      Point,
+                      Polygon,
+                      Triangulation)
+from ground.base import get_context
 from hypothesis_geometry import planar
 
-from npd.npd import to_partition
+from npd.npd import steiner_points
+from npd.structures import (CachedPolygon,
+                            to_triangular_map)
+from npd.utils import touching_points
+
 from tests.config import (MAX_COORDINATE,
                           MAX_DENOMINATOR,
                           MAX_HOLES_SIZE,
                           MAX_HOLE_SIZE,
                           MAX_POLYGON_SIZE,
-                          MAX_REQRUIREMENTS_COUNT,
+                          MAX_REQUIREMENTS_COUNT,
                           MAX_REQUIREMENT_FRACTION,
                           MAX_STEINER_POINTS_COUNT,
                           MIN_COORDINATE,
                           MIN_HOLES_SIZE,
                           MIN_HOLE_SIZE,
                           MIN_POLYGON_SIZE,
-                          MIN_REQRUIREMENTS_COUNT,
+                          MIN_REQUIREMENTS_COUNT,
                           MIN_REQUIREMENT_FRACTION,
                           MIN_STEINER_POINTS_COUNT)
 
@@ -31,14 +40,145 @@ polygons = planar.polygons(coordinates,
                            max_holes_size=MAX_HOLES_SIZE,
                            min_hole_size=MIN_HOLE_SIZE,
                            max_hole_size=MAX_HOLE_SIZE)
+# Generating Steiner points is cheap (no triangulation), so its tests
+# can afford non-convex polygons with holes. Holes need a wider grid than
+# `coordinates` gives (on it no holes are generated at all), and even then
+# only ~6% of polygons get one unless at least one is required.
+wide_coordinates = st.fractions(0, 4, max_denominator=2)
+varied_polygons = st.one_of(
+    planar.polygons(wide_coordinates,
+                    max_size=8),
+    planar.polygons(wide_coordinates,
+                    max_size=8,
+                    min_holes_size=1,
+                    max_holes_size=2,
+                    max_hole_size=4))
 steiner_points_counts = st.integers(MIN_STEINER_POINTS_COUNT,
                                     MAX_STEINER_POINTS_COUNT)
 unit_area_fractions = st.fractions(MIN_REQUIREMENT_FRACTION,
                                    MAX_REQUIREMENT_FRACTION)
 deltas = st.fractions(Fraction(1, 10), Fraction(1))
-partitions = st.builds(to_partition,
-                       polygon=polygons,
-                       delta=deltas)
+# Steiner points spaced at least this far apart keep partitions to a few
+# dozen triangles, so uniting them stays fast.
+sparse_deltas = st.fractions(Fraction(1, 2), Fraction(1))
+MAX_POLYGONS_LIST_SIZE = 4
+
+
+def to_polygon_with_triangles(polygon: Polygon[Fraction],
+                              delta: Fraction
+                              ) -> tuple[Polygon[Fraction],
+                                         list[CachedPolygon]]:
+    """Triangulates the polygon the same way `Partition` does."""
+    triangulation = Triangulation.constrained_delaunay(
+        polygon,
+        extra_points=[*steiner_points(polygon, delta),
+                      *touching_points(polygon)],
+        context=get_context())
+    return polygon, list(map(CachedPolygon, triangulation.triangles()))
+
+
+polygons_with_triangles = st.builds(to_polygon_with_triangles,
+                                    varied_polygons,
+                                    sparse_deltas)
+triangles = planar.triangular_contours(wide_coordinates).map(CachedPolygon)
+triangles_lists = st.lists(triangles, min_size=1, max_size=4)
+scales = st.floats(1e-3, 1e3)
+positive_fractions = st.fractions(0).filter(bool)
+# Operations on a partition: (is a move rather than a unite, source chunk
+# index for a unite, index of the chosen neighbor or move). Indices are
+# taken modulo the available options.
+MAX_PARTITION_OPERATIONS_COUNT = 10
+partition_operations = st.lists(st.tuples(st.booleans(),
+                                          st.integers(0),
+                                          st.integers(0)),
+                                max_size=MAX_PARTITION_OPERATIONS_COUNT)
+# triangles as (endpoint, base start, base end) with a non-degenerate
+# area; a coarse grid makes vertical and horizontal bases common
+triangle_coordinates = st.fractions(-4, 4, max_denominator=3)
+triangle_points = st.builds(Point, triangle_coordinates, triangle_coordinates)
+
+
+def is_non_degenerate(vertices: tuple[Point[Fraction], ...]) -> bool:
+    endpoint, start, end = vertices
+    result: bool = ((start.x - endpoint.x) * (end.y - endpoint.y)
+                    != (start.y - endpoint.y) * (end.x - endpoint.x))
+    return result
+
+
+triangle_vertices = st.tuples(triangle_points,
+                              triangle_points,
+                              triangle_points).filter(is_non_degenerate)
+# positions strictly inside a segment, as fractions of its length
+inner_fractions = st.fractions(0, 1, max_denominator=10).filter(
+    lambda fraction: 0 < fraction < 1)
+# cuts of a triangle: (index of the triangle, taken modulo the count,
+# index of the pivot vertex, position of the new vertex on the edge
+# opposite the pivot)
+triangle_cuts = st.tuples(st.integers(0),
+                          st.integers(0, 2),
+                          inner_fractions)
+# (index of the refinement setup, taken modulo the count, position of
+# the requirement within the range the node's area allows)
+refinements = st.tuples(st.integers(0), inner_fractions)
+# (index of the chunk to keep as in `split`, taken modulo the count,
+# whether to work in its remainder instead)
+two_chunks_choices = st.tuples(st.integers(0), st.booleans())
+# requirements as fractions of the area above which `nonconvex.split` can
+# join down to two chunks, neither of them satisfactory
+high_requirement_factors = st.fractions(Fraction(3, 4), Fraction(1),
+                                        max_denominator=100).filter(
+    lambda factor: factor < 1)
+# requirements as fractions of the area that `nonconvex.split` accepts
+requirement_factors = st.fractions(0, 1, max_denominator=100).filter(
+    lambda factor: 0 < factor < 1)
+# requirements as fractions of the area that `split_into_two` accepts
+half_requirement_factors = st.fractions(0, Fraction(1, 2),
+                                        max_denominator=100).filter(
+    lambda factor: factor > 0)
+# requirements as fractions of the area that `split_into_two` rejects
+invalid_half_requirement_factors = (
+    st.fractions(max_value=0)
+    | st.fractions(min_value=Fraction(1, 2)).filter(
+        lambda factor: factor > Fraction(1, 2)))
+invalid_steiner_points_counts = st.integers(max_value=0)
+# requirements as fractions of the area that `nonconvex.split` rejects
+invalid_requirement_factors = (st.fractions(max_value=0)
+                               | st.fractions(min_value=1))
+triangular_maps = polygons_with_triangles.map(
+    lambda polygon_with_triangles: to_triangular_map(
+        polygon_with_triangles[1]))
+triangles_lists_with_permutations = polygons_with_triangles.flatmap(
+    lambda polygon_with_triangles: st.tuples(
+        st.just(polygon_with_triangles[1]),
+        st.permutations(polygon_with_triangles[1])))
+# Fine-grained coordinates with signs, so lengths need rounding.
+length_coordinates = st.fractions(-100, 100, max_denominator=1000)
+length_segments = planar.segments(length_coordinates)
+length_contours = planar.contours(length_coordinates)
+
+
+def to_reoriented(contour: Contour[Fraction],
+                  start: int,
+                  reverse: bool) -> Contour[Fraction]:
+    """Same contour starting at another vertex, maybe traversed backwards."""
+    vertices = contour.vertices[start:] + contour.vertices[:start]
+    return Contour(vertices[::-1] if reverse else vertices)
+
+
+contours_with_reoriented = length_contours.flatmap(
+    lambda contour: st.tuples(
+        st.just(contour),
+        st.builds(to_reoriented,
+                  st.just(contour),
+                  st.integers(0, len(contour.vertices) - 1),
+                  st.booleans())))
+multisegments = planar.multisegments(length_coordinates)
+polygons_lists = st.lists(polygons,
+                          min_size=1,
+                          max_size=MAX_POLYGONS_LIST_SIZE)
+polygons_lists_with_permutations = polygons_lists.flatmap(
+    lambda polygons_list: st.tuples(st.just(polygons_list),
+                                    st.permutations(polygons_list)))
 
 MIN_PARTITION_SIZE = 1
 
@@ -64,7 +204,7 @@ def to_partitions(sum_: Fraction,  # noqa: C901
     def to_proportions(numbers: list[Fraction]) -> list[Fraction]:
         return [2 * abs(number) / (1 + number * number) for number in numbers]
 
-    def to_partition(proportions: list[Fraction]) -> list[Fraction]:
+    def scale_to_sum(proportions: list[Fraction]) -> list[Fraction]:
         factor = sum_ / sum(proportions)
         return [proportion * factor for proportion in proportions]
 
@@ -99,14 +239,14 @@ def to_partitions(sum_: Fraction,  # noqa: C901
                      max_size=size)
             .filter(any)
             .map(to_proportions)
-            .map(to_partition)
+            .map(scale_to_sum)
             .map(bound_minimum)
             .map(normalize)
             .filter(is_valid))
 
 
-requirements_fractions = st.integers(MIN_REQRUIREMENTS_COUNT,
-                                     MAX_REQRUIREMENTS_COUNT
+requirements_fractions = st.integers(MIN_REQUIREMENTS_COUNT,
+                                     MAX_REQUIREMENTS_COUNT
                                      ).flatmap(
     lambda n: to_partitions(Fraction(1),
                             base=st.fractions(),
