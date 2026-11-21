@@ -1,51 +1,82 @@
-import logging
 from fractions import Fraction
 
+import pytest
 from gon.base import Polygon
 from hypothesis import given
 
-from npd.draw import draw
 from npd.npd import split_into_two
-from tests.strategies.base import (polygons,
+from tests.strategies.base import (half_requirement_factors,
+                                   invalid_half_requirement_factors,
+                                   invalid_steiner_points_counts,
                                    steiner_points_counts,
-                                   unit_area_fractions)
-
-LOGGER = logging.getLogger(__name__)
-
-draw.DRAW = False
+                                   varied_polygons)
+from tests.utils import NON_CONVEX_POLYGONS
 
 
-@given(polygon=polygons,
-       unit_area_fraction=unit_area_fractions,
+def assert_valid_split(polygon: Polygon[Fraction],
+                       requirement: Fraction,
+                       part: Polygon[Fraction],
+                       other: Polygon[Fraction]) -> None:
+    assert isinstance(part, Polygon)
+    assert isinstance(other, Polygon)
+    assert part.area == requirement
+    assert other.area == polygon.area - requirement
+    # With the areas adding up, an equal union means the parts don't
+    # overlap.
+    assert part | other == polygon
+
+
+@given(polygon=varied_polygons,
+       factor=half_requirement_factors,
        steiner_points_count=steiner_points_counts)
-def test_nodes_unions_equality(polygon: Polygon[Fraction],
-                               unit_area_fraction: Fraction,
-                               steiner_points_count: int) -> None:
-    requirement = polygon.area * unit_area_fraction
-    first_part, second_part = split_into_two(
-        polygon,
-        requirement=requirement,
-        steiner_points_count=steiner_points_count)
-    draw.DRAW = True
-    draw(first_part, blue=second_part)
-    draw.DRAW = False
+def test_split(polygon: Polygon[Fraction],
+               factor: Fraction,
+               steiner_points_count: int) -> None:
+    requirement = polygon.area * factor
 
-    assert True
+    part, other = split_into_two(polygon,
+                                 requirement=requirement,
+                                 steiner_points_count=steiner_points_count)
+
+    assert_valid_split(polygon, requirement, part, other)
 
 
-@given(polygon=polygons,
-       unit_area_fraction=unit_area_fractions,
+@pytest.mark.parametrize("polygon", NON_CONVEX_POLYGONS)
+@pytest.mark.parametrize("factor", [Fraction(1, 10),
+                                    Fraction(1, 3),
+                                    Fraction(1, 2)])
+@pytest.mark.parametrize("steiner_points_count", [4, 16])
+def test_non_convex(polygon: Polygon[Fraction],
+                    factor: Fraction,
+                    steiner_points_count: int) -> None:
+    requirement = polygon.area * factor
+
+    part, other = split_into_two(polygon,
+                                 requirement=requirement,
+                                 steiner_points_count=steiner_points_count)
+
+    assert_valid_split(polygon, requirement, part, other)
+
+
+@given(polygon=varied_polygons,
+       factor=invalid_half_requirement_factors,
        steiner_points_count=steiner_points_counts)
-def test_nodes_validity(polygon: Polygon[Fraction],
-                        unit_area_fraction: Fraction,
-                        steiner_points_count: int) -> None:
-    requirement = polygon.area * unit_area_fraction
-    draw(polygon)
-    first_part, second_part = split_into_two(
-        polygon,
-        requirement=requirement,
-        steiner_points_count=steiner_points_count)
-    draw(first_part, blue=second_part)
+def test_invalid_requirement(polygon: Polygon[Fraction],
+                             factor: Fraction,
+                             steiner_points_count: int) -> None:
+    with pytest.raises(ValueError, match="positive and at most half"):
+        split_into_two(polygon,
+                       requirement=polygon.area * factor,
+                       steiner_points_count=steiner_points_count)
 
-    assert isinstance(first_part, Polygon)
-    assert isinstance(second_part, Polygon)
+
+@given(polygon=varied_polygons,
+       factor=half_requirement_factors,
+       steiner_points_count=invalid_steiner_points_counts)
+def test_invalid_steiner_points_count(polygon: Polygon[Fraction],
+                                      factor: Fraction,
+                                      steiner_points_count: int) -> None:
+    with pytest.raises(ValueError, match="Steiner points count"):
+        split_into_two(polygon,
+                       requirement=polygon.area * factor,
+                       steiner_points_count=steiner_points_count)

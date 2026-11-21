@@ -1,113 +1,113 @@
 """Various utility functions."""
 import math
-from collections.abc import (Iterable,
-                             Iterator)
-from decimal import Decimal
+from collections.abc import Iterable
 from fractions import Fraction
 from functools import reduce
 from operator import or_
-from typing import TypeVar
 
-from gon.base import (Contour,
-                      EMPTY,
-                      Linear,
-                      Orientation,
+from gon.base import (EMPTY,
+                      Contour,
+                      Empty,
+                      Multipolygon,
                       Point,
                       Polygon,
                       Segment)
 
-T = TypeVar("T")
 
-
-def fast_length(geometry: Linear[Fraction]) -> float:
+def fast_length(geometry: Segment[Fraction] | Contour[Fraction]) -> float:
     """
     Calculates the length of a segment or a contour using floats.
 
-    :param geometry:
-    :return:
+    gon's ``length`` is exact but symbolic, so slower and, for contours,
+    not convertible to float.
+    :param geometry: segment or contour to measure
+    :return: approximate length
+    :raises TypeError: for any other geometry
     """
     if isinstance(geometry, Segment):
-        start = geometry.start
-        end = geometry.end
-        return math.sqrt((start.x - end.x) ** 2 + (start.y - end.y) ** 2)
+        return distance(geometry.start, geometry.end)
     if isinstance(geometry, Contour):
-        result = 0.0
-        for segment in geometry.segments:
-            start = segment.start
-            end = segment.end
-            result += math.sqrt((start.x - end.x) ** 2
-                                + (start.y - end.y) ** 2)
-        return result
+        vertices = geometry.vertices
+        return sum(map(distance, vertices, (*vertices[1:], vertices[0])))
     raise TypeError(f"Cannot calculate length of type {type(geometry)}")
 
 
-def to_segments(vertices: list[Point]) -> Iterator[Segment]:
-    """Returns an iterator over consecutive segments on the points."""
-    yield from map(Segment, vertices, vertices[1:])
+def distance(start: Point[Fraction], end: Point[Fraction]) -> float:
+    """
+    Calculates the distance between two points using floats.
+
+    The differences are exact; only ``math.hypot`` rounds them, which
+    keeps it fast for coordinates with many digits.
+    :param start: one point
+    :param end: another point
+    :return: approximate distance
+    """
+    return math.hypot(start.x - end.x, start.y - end.y)
+
+
+def touching_points(polygon: Polygon[Fraction]) -> list[Point[Fraction]]:
+    """
+    Finds vertices lying strictly inside an edge of another contour.
+
+    These are where a hole touches the border or another hole. gon
+    allows such polygons, but sect's constrained Delaunay triangulation
+    can't handle them: it returns no triangles or raises. Passed to it as
+    extra points, they get inserted into the edges they lie on, which
+    fixes that.
+
+    :param polygon: input polygon
+    :return: distinct touching points
+    """
+    contours = [polygon.border, *polygon.holes]
+    return list(dict.fromkeys(
+        vertex
+        for contour in contours
+        for other in contours
+        if other is not contour
+        for edge in other.segments
+        for vertex in contour.vertices
+        if vertex in edge and vertex not in (edge.start, edge.end)))
 
 
 def inverse_shoelace(area: Fraction,
-                     endpoint: Point,
-                     base_start: Point,
-                     base_end: Point) -> Point:
+                     endpoint: Point[Fraction],
+                     base_start: Point[Fraction],
+                     base_end: Point[Fraction]) -> Point[Fraction]:
     """
-    Finds a point on the base line forming a triangle of the given area.
+    Finds the point on the base forming a triangle of the given area.
 
     The triangle is formed by the endpoint, the base start and the point.
-    :param area:
-    :param endpoint:
-    :param base_start:
-    :param base_end:
-    :return:
+    Its area grows linearly as the point moves from the base start to
+    the base end, up to the area of the triangle formed by the endpoint
+    and the whole base, so the point divides the base in the ratio of
+    the two areas. It lies strictly inside the base exactly when the
+    area is positive and less than that triangle's area; otherwise it
+    lies elsewhere on the base's line.
+    :param area: area of the triangle to form
+    :param endpoint: vertex of the triangle opposite the base
+    :param base_start: vertex of the triangle on the base
+    :param base_end: other end of the base
+    :return: the third vertex of the triangle, on the base's line
+    :raises ZeroDivisionError: if the endpoint lies on the base's line
     """
-    orientation = Contour([endpoint, base_start, base_end]).orientation
-    sign = 1 if orientation is Orientation.COUNTERCLOCKWISE else -1
-    if base_end.x - base_start.x == 0:
-        numerator = 2 * area + sign * (base_start.x * base_start.y
-                                       - endpoint.x * base_start.y)
-        denominator = sign * (base_start.x - endpoint.x)
-        y_coordinate = numerator / denominator
-        return Point(base_start.x, y_coordinate)
-    slope, intercept = slope_intercept(base_start, base_end)
-    x_diff = base_start.x - endpoint.x
-    numerator = 2 * area + sign * (base_start.x * endpoint.y
-                                   - endpoint.x * base_start.y
-                                   - intercept * x_diff)
-    denominator = sign * (endpoint.y - base_start.y + slope * x_diff)
-    x_coordinate = numerator / denominator
-    y_coordinate = slope * x_coordinate + intercept
-    return Point(x_coordinate, y_coordinate)
+    double_full_area = abs((base_start.x - endpoint.x)
+                           * (base_end.y - endpoint.y)
+                           - (base_start.y - endpoint.y)
+                           * (base_end.x - endpoint.x))
+    ratio = 2 * area / double_full_area
+    return Point(base_start.x + ratio * (base_end.x - base_start.x),
+                 base_start.y + ratio * (base_end.y - base_start.y))
 
 
-def slope_intercept(start: Point, end: Point) -> tuple[Fraction, Fraction]:
-    """
-    Calculates the slope and the intercept of the line through two points.
-
-    :param start:
-    :param end:
-    :return:
-    """
-    slope = (end.y - start.y) / (end.x - start.x)
-    intercept = end.y - slope * end.x
-    return slope, intercept
-
-
-def robust_sqrt(fraction: Fraction) -> Fraction:
-    """
-    Calculates the square root of a fraction using decimals.
-
-    :param fraction:
-    :return:
-    """
-    return Fraction((fraction.numerator
-                     / Decimal(fraction.denominator)).sqrt())
-
-
-def unite(geometries: Iterable[Polygon[Fraction]]) -> Polygon[Fraction]:
+def unite(polygons: Iterable[Polygon[Fraction]]
+          ) -> Polygon[Fraction] | Multipolygon[Fraction] | Empty:
     """
     Unites the given polygons into one geometry.
 
-    :param geometries:
-    :return:
+    gon has no n-ary union, so this folds its binary ``|`` operator.
+
+    :param polygons: polygons to unite
+    :return: a ``Polygon`` if the union is connected, a ``Multipolygon``
+    if it is not, and ``EMPTY`` if no polygons were given
     """
-    return reduce(or_, geometries, EMPTY)
+    return reduce(or_, polygons, EMPTY)
