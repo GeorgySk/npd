@@ -149,9 +149,11 @@ def test_l_shape_keeps_chunk_map() -> None:
 def test_pentagon_needing_triangle_split() -> None:
     # `add_triangles` runs out of movable triangles and has to split one,
     # but `edge_neighbor` used to find no neighbor to split it with.
+    coordinates: list[tuple[int | Fraction, int]] = [
+        (0, 0), (2, 1), (3, 4), (1, 4), (Fraction(3, 2), 1)
+    ]
     pentagon = Polygon(Contour([Point(Fraction(x), Fraction(y))
-                                for x, y in [(0, 0), (2, 1), (3, 4),
-                                             (1, 4), (Fraction(3, 2), 1)]]),
+                                for x, y in coordinates]),
                        [])
     partition = to_partition(pentagon, delta=Fraction(52, 59))
     requirement = Fraction(7, 2)

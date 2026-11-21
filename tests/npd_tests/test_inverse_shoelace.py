@@ -13,7 +13,8 @@ Vertices = tuple[Point[Fraction], Point[Fraction], Point[Fraction]]
 
 
 def triangle_area(vertices: Vertices) -> Fraction:
-    return Polygon(Contour(list(vertices)), []).area
+    area: Fraction = Polygon(Contour(list(vertices)), []).area
+    return area
 
 
 @given(vertices=triangle_vertices,

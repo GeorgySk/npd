@@ -100,8 +100,9 @@ triangle_points = st.builds(Point, triangle_coordinates, triangle_coordinates)
 
 def is_non_degenerate(vertices: tuple[Point[Fraction], ...]) -> bool:
     endpoint, start, end = vertices
-    return ((start.x - endpoint.x) * (end.y - endpoint.y)
-            != (start.y - endpoint.y) * (end.x - endpoint.x))
+    result: bool = ((start.x - endpoint.x) * (end.y - endpoint.y)
+                    != (start.y - endpoint.y) * (end.x - endpoint.x))
+    return result
 
 
 triangle_vertices = st.tuples(triangle_points,
